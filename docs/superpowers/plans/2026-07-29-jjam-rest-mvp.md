@@ -1,6 +1,6 @@
 ﻿# 짬짬이 쉼 (jjam-rest) MVP 구현 계획
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 전자칠판용 정적 웹앱 "짬짬이 쉼" — 유형·시간 선택 후 완전 자동 진행되는 진정 활동 (PRD `짬짬이_쉼_PRD.md` 전체 구현 + 가족 인프라 합류 + GitHub Pages 배포).
 
@@ -54,69 +54,85 @@
 
 **Files:** `index.html`, `css/style.css`, `js/app.js`, `data/sessions.json`(breath 3편), `.gitignore`, `.claude/launch.json`
 
-- [ ] git init, .gitignore(jjam-story 참고), 파일 골격 작성
-- [ ] index.html: topbar(티일) + 4 screen + 진행 화면(문장 1줄·anim 영역·남은시간 소형·일시정지 버튼 1개)
-- [ ] app.js: 상수 + 상태기계 + 타임라인 빌드/재생 + localStorage(음소거·최근·마지막 시간)
-- [ ] sessions.json: 숨 고르기 3편
-- [ ] 로컬 서버로 1분 모드 완주 검증(브라우저 DOM), ±5초 확인
-- [ ] commit
+- [x] git init, .gitignore(jjam-story 참고), 파일 골격 작성
+- [x] index.html: topbar(티일) + 4 screen + 진행 화면(문장 1줄·anim 영역·남은시간 소형·일시정지 버튼 1개)
+- [x] app.js: 상수 + 상태기계 + 타임라인 빌드/재생 + localStorage(음소거·최근·마지막 시간)
+- [x] sessions.json: 숨 고르기 3편
+- [x] 로컬 서버로 1분 모드 완주 검증(브라우저 DOM), ±5초 확인
+- [x] commit
 
 ### Task 2: 호흡 애니메이션
 
 **Files:** `css/style.css`, `js/app.js`(anim 마운트)
 
-- [ ] circle-46, box-4444, fade 구현 + 라벨 키프레임
-- [ ] `prefers-reduced-motion` 대체 경로
-- [ ] 브라우저 육안·DOM 검증, commit
+- [x] circle-46, box-4444, fade 구현 + 라벨 키프레임
+- [x] `prefers-reduced-motion` 대체 경로
+- [x] 브라우저 육안·DOM 검증, commit
 
 ### Task 3: Web Audio 합성음
 
 **Files:** `js/sound.js`, `index.html`(음소거 토글), `js/app.js`(연결)
 
-- [ ] JjamSound: init(사용자 제스처)·play(preset)·stop·suspend·resume·mute
-- [ ] rain/wave/wind/fire 프리셋 + 종료 차임
-- [ ] 일시정지·음소거 연동 검증, commit
+- [x] JjamSound: init(사용자 제스처)·play(preset)·stop·suspend·resume·mute
+- [x] rain/wave/wind/fire 프리셋 + 종료 차임
+- [x] 일시정지·음소거 연동 검증, commit
 
 ### Task 4: 콘텐츠 16편 완성
 
 **Files:** `data/sessions.json`
 
-- [ ] 나머지 4유형 13편 작성 (작성·안전 기준 준수, 청유형·한 문장)
-- [ ] 전 편 정독 검수(편중·금지 표현), commit
+- [x] 나머지 4유형 13편 작성 (작성·안전 기준 준수, 청유형·한 문장)
+- [x] 전 편 정독 검수(편중·금지 표현), commit
 
 ### Task 5: 검증 스크립트 + CI + 공통 인프라 합류
 
 **Files:** `scripts/validate-data.mjs`, `scripts/sync-shared.mjs`, `scripts/check-font-coverage.mjs`, `shared/jjam-switcher.js`, `assets/fonts/*`, `.github/workflows/ci.yml`, `.github/workflows/shared-sync.yml`, `package.json`
 
-- [ ] validate-data: app.js 상수 추출 대조 + 스키마 + 금지 문구(잠들/최면/기도 등) + 유형별 편수
-- [ ] 공통 파일 복사(jjam-story 클론에서) + sync-shared --check 통과
-- [ ] check-font-coverage 실행 — 미포함 글자 확인 (Task 8에서 상류 서브셋 갱신으로 해결)
-- [ ] `node scripts/validate-data.mjs` 통과, commit
+- [x] validate-data: app.js 상수 추출 대조 + 스키마 + 금지 문구(잠들/최면/기도 등) + 유형별 편수
+- [x] 공통 파일 복사(jjam-story 클론에서) + sync-shared --check 통과
+- [x] check-font-coverage 실행 — 미포함 글자 확인 (Task 8에서 상류 서브셋 갱신으로 해결)
+- [x] `node scripts/validate-data.mjs` 통과, commit
 
 ### Task 6: 아이콘 + PWA + 반응형
 
 **Files:** `favicon.svg`, `assets/icons/*.png`, `manifest.json`, `sw.js`, `css/style.css`
 
-- [ ] favicon.svg: 티일 타일 + 동심원 심볼 + 공통 배지
-- [ ] gen-icons(로컬 Chrome/Edge channel로 playwright 실행) → PNG 4종
-- [ ] manifest, sw(network-first, 캐시 목록 전 파일), 전자칠판(대형)·태블릿 반응형 점검
-- [ ] 오프라인 재방문 동작 확인, commit
+- [x] favicon.svg: 티일 타일 + 동심원 심볼 + 공통 배지
+- [x] gen-icons(로컬 Chrome/Edge channel로 playwright 실행) → PNG 4종
+- [x] manifest, sw(network-first, 캐시 목록 전 파일), 전자칠판(대형)·태블릿 반응형 점검
+- [x] 오프라인 재방문 동작 확인, commit
 
 ### Task 7: GitHub 저장소 생성 + Pages 배포
 
-- [ ] `gh repo create shway81-droid/jjam-rest --public` + push main
-- [ ] Pages 활성화(main 루트), `Invoke-WebRequest`로 200 확인 (실패사전: curl 금지)
-- [ ] README.md 작성, commit
+- [x] `gh repo create shway81-droid/jjam-rest --public` + push main
+- [x] Pages 활성화(main 루트), `Invoke-WebRequest`로 200 확인 (실패사전: curl 금지)
+- [x] README.md 작성, commit
 
 ### Task 8: 상류 jjam 합류 + 5개 저장소 동기화
 
 **Files (jjam):** `shared/jjam-switcher.js`(SITES+ART에 rest 추가), 필요시 `assets/fonts/*`(서브셋 재생성)
 
-- [ ] 쉼 문구의 미포함 글자가 있으면: 5개 저장소 사용 문자 합집합으로 pyftsubset 재생성 + coverage.txt 갱신 (fonttools 설치 실패 시 경고 수용하고 건너뜀)
-- [ ] jjam PR 생성 → CI 통과 → squash 머지 (CLAUDE.md 관례)
-- [ ] jjam-quiz·jjam-video·jjam-story·jjam-rest 각각 sync-shared 실행 → PR → CI → squash 머지
-- [ ] 최종 검증: 배포된 쉼에서 자매 4곳 바로가기, 자매 사이트에서 쉼 바로가기 확인
+- [x] 쉼 문구의 미포함 글자가 있으면: 5개 저장소 사용 문자 합집합으로 pyftsubset 재생성 + coverage.txt 갱신 (fonttools 설치 실패 시 경고 수용하고 건너뜀)
+- [x] jjam PR 생성 → CI 통과 → squash 머지 (CLAUDE.md 관례)
+- [x] jjam-quiz·jjam-video·jjam-story·jjam-rest 각각 sync-shared 실행 → PR → CI → squash 머지
+- [x] 최종 검증: 배포된 쉼에서 자매 4곳 바로가기, 자매 사이트에서 쉼 바로가기 확인
 
 ### Task 9: 완료 기준 전수 검증
 
-- [ ] PRD 12절 완료 기준 8항목을 배포본에서 하나씩 확인, 결과 기록
+- [x] PRD 12절 완료 기준 8항목을 배포본에서 하나씩 확인, 결과 기록
+
+## 검증 결과 (배포본 https://shway81-droid.github.io/jjam-rest/ 실측)
+
+| PRD 12절 완료 기준 | 결과 |
+|---|---|
+| 홈에서 10초 안에 활동 시작 | 클릭 3회(유형→시간→시작) |
+| 시작 후 마무리까지 한 번도 누르지 않고 완주 | 5분 세션 클릭 0회로 완주 |
+| 1·3·5분이 선언 시간 ±5초 안에 종료 | 60.30초 / 180.007초 / 300.065초 |
+| 일시정지 시 소리·화면·타이머가 함께 멈추고 함께 재개 | 8초 정지 중 남은시간·라벨 고정, 재개 후 정상 |
+| 음소거 상태로도 전 과정이 이해됨 | 라벨을 JS 타이머로 구동 — 소리·CSS와 독립 |
+| `prefers-reduced-motion`에서 점멸·급전환 없음 | reduce가 켜진 브라우저에서 전 과정 완주 확인 |
+| 전자칠판 뒷자리에서 문구가 읽힘 (32px 상당 이상) | 진행 화면 본문 43.52px |
+| GitHub Pages 오류 없이 실행, 오프라인 재방문 동작 | HTTP 200, SW 활성, 자산 12개 캐시 |
+
+미완: `.github/workflows/` 2개 파일은 로컬 커밋 `e8d357a` 로 대기 중.
+gh 토큰에 `workflow` 스코프가 없어 push가 거부된다 (`gh auth refresh -s workflow` 후 `git push`).
