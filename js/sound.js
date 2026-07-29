@@ -109,10 +109,12 @@ var JjamSound = (function () {
     c.gain.gain.cancelScheduledValues(t);
     c.gain.gain.setValueAtTime(c.gain.gain.value, t);
     c.gain.gain.linearRampToValueAtTime(0.0001, t + f);
-    setTimeout(function () {
-      c.nodes.forEach(function (n) { try { n.stop(); } catch (e) { /* 이미 정지 */ } });
-      try { c.gain.disconnect(); } catch (e) { /* 무시 */ }
-    }, (f + 0.2) * 1000);
+    // 노드 정지는 오디오 시계로 예약한다. 벽시계 setTimeout 으로 끊으면
+    // 페이드 도중 일시정지했을 때 페이드는 멈춘 채 정지만 실행되어 소리가 뚝 끊긴다.
+    c.nodes.forEach(function (n) { try { n.stop(t + f + 0.05); } catch (e) { /* 이미 정지 */ } });
+    // 연결 해제는 소리에 영향이 없으므로 넉넉히 뒤에 치운다.
+    setTimeout(function () { try { c.gain.disconnect(); } catch (e) { /* 무시 */ } },
+      (f + 1.5) * 1000);
   }
 
   function play(key) {

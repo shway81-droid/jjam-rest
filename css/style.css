@@ -246,7 +246,9 @@ button { font-family: inherit; cursor: pointer; }
   text-align: center;
   max-width: 30em;
   line-height: 1.55;
-  transition: opacity 1.2s ease;
+  /* js/app.js 의 TEXT_FADE_MS 와 같은 값이어야 한다 — 글자가 완전히 흐려진 뒤에
+     다음 문장이 들어가야 급전환으로 보이지 않는다. */
+  transition: opacity 0.5s ease;
 }
 .play-text.fading { opacity: 0; }
 
@@ -297,10 +299,11 @@ button { font-family: inherit; cursor: pointer; }
   display: flex; align-items: center; justify-content: center;
   font-size: clamp(1.2rem, 2.2vw, 1.6rem); font-weight: 700;
   color: var(--deep-ink);
-  transition: opacity 0.45s ease;
+  /* js/app.js 의 LABEL_FADE_MS 와 같은 값 */
+  transition: opacity 0.25s ease;
   pointer-events: none;
 }
-.anim-label.fading { opacity: 0.25; }
+.anim-label.fading { opacity: 0; }
 
 /* 1) circle-46 — 4초 커지고(들숨) 6초 작아진다(날숨). 10초 주기. */
 @keyframes bc-scale {
@@ -365,6 +368,13 @@ button { font-family: inherit; cursor: pointer; }
   .bb-dot { display: none; }
   .calm-glow { animation: none; opacity: 0.75; }
   .type-card, .type-card:hover { transform: none; transition: none; }
+
+  /* 크로스페이드도 끈다. 이 설정을 켠 브라우저는 transition 진행조차 멈춰
+     버려서, 흐려진 글자가 opacity 0 인 채로 영영 돌아오지 않는다. 그러면
+     화면에서 문장이 사라져 활동 자체가 성립하지 않는다.
+     글자 교체는 면적·밝기 변화가 아니라 광과민성과 무관하므로 즉시 바꾼다. */
+  .play-text, .anim-label { transition: none; }
+  .play-text.fading, .anim-label.fading { opacity: 1; }
 }
 
 /* ── 마무리 ── */

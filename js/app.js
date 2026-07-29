@@ -25,7 +25,11 @@
   var LS_KEY = 'jjam-rest-v1';
   var RECENT_MAX = 8;
   var TICK_MS = 250;
-  var TEXT_FADE_MS = 500;   // 문장 교체 크로스페이드의 절반
+  // 글자를 완전히 흐린 뒤에 갈아 끼운다 — CSS 의 transition 길이와 같은 값이어야
+  // 한다(style.css 의 .play-text / .anim-label). 짧으면 반쯤 보이는 글자 위에
+  // 다음 문장이 얹혀 급전환처럼 보인다.
+  var TEXT_FADE_MS = 500;
+  var LABEL_FADE_MS = 250;
 
   // 애니메이션 키 → 무대 마크업. 같은 키가 이어지면 다시 만들지 않는다
   // (호흡 주기가 단계 경계에서 끊기지 않도록).
@@ -58,7 +62,9 @@
   var S = {
     type: null,
     session: null,
-    duration: store.duration || 3,
+    // 저장값을 그대로 믿지 않는다 — 저장소가 깨졌거나 옛 버전이 남아 있으면
+    // 아무 버튼도 선택되지 않은 채로 99분짜리 세션이 시작될 수 있다.
+    duration: DURATIONS.indexOf(store.duration) !== -1 ? store.duration : 3,
     timeline: [],      // buildTimeline 결과
     bounds: [],        // 단계 누적 종료 시각(초)
     total: 0,
@@ -70,8 +76,7 @@
     pausedAccum: 0,
     pausedAt: 0,
     paused: false,
-    handle: null,
-    fadeTimer: null
+    handle: null
   };
 
   // ── 저장소 — 음소거·최근 사용·마지막 시간 선택만 (학생 정보 없음) ──
@@ -104,6 +109,29 @@
     return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2);
   }
 
+  // ── 예약된 화면 전환 ──────────────────────────────
+  // 문구·라벨 교체는 크로스페이드 뒤에 일어난다. 그 대기 시간은 벽시계
+  // setTimeout 이라 일시정지가 건드리지 못한다 — 그대로 두면 멈춘 화면에서
+  // 글자가 저절로 넘어간다. 예약을 한곳에 모아 두고, 멈출 때 즉시 끝낸다.
+  var pending = { fadeTimer: null, labelTimer: null };
+
+  function schedule(slot, fn, ms) {
+    cancel(slot);
+    pending[slot] = { fn: fn, id: setTimeout(function () { pending[slot] = null; fn(); }, ms) };
+  }
+  function cancel(slot) {
+    if (pending[slot]) { clearTimeout(pending[slot].id); pending[slot] = null; }
+  }
+  function flushPending() {
+    Object.keys(pending).forEach(function (slot) {
+      var p = pending[slot];
+      if (!p) return;
+      clearTimeout(p.id);
+      pending[slot] = null;
+      p.fn();
+    });
+  }
+
   function show(screenId) {
     ['screen-home', 'screen-setup', 'screen-play', 'screen-done'].forEach(function (id) {
       $(id).hidden = (id !== screenId);
@@ -132,8 +160,10 @@
 
   // ── 타임라인 — durations 에 따라 steps 를 자르거나 반복하는 규칙 (PRD 8절) ──
   // steps = [ready, body..., close]. 시간 d분의 body 예산 = d*60 − ready − close.
-  // body 를 앞에서부터 채우고, 모자라면 처음부터 반복, 마지막 단계는 예산에 맞게
-  // 초를 잘라 총합을 정확히 d*60초로 만든다. 1분 모드는 자연히 첫 단계만 남는다.
+  // body 를 앞에서부터 채우고, 모자라면 처음부터 반복해 총합을 정확히 d*60초로 만든다.
+  // 1분 모드는 자연히 첫 단계만 남는다.
+  var TAIL_MIN = 20;   // 이보다 짧은 자투리는 새 문구를 끼우지 않는다
+
   function buildTimeline(session, minutes) {
     var steps = session.steps;
     var ready = steps[0];
@@ -143,10 +173,26 @@
     var out = [ready];
     var used = 0, i = 0;
     while (used < budget && body.length) {
+      var remain = budget - used;
       var src = body[i % body.length];
-      var sec = Math.min(src.seconds, budget - used);
-      out.push({ phase: src.phase, text: src.text, seconds: sec, anim: src.anim, sound: src.sound });
-      used += sec;
+      // 자투리가 짧으면 새 문구를 띄우지 않고 직전 단계를 늘린다.
+      // 그러지 않으면 5분 모드 마무리 직전에 "두 주먹을 꽉 쥐어요" 같은
+      // 도입 문구가 10초짜리로 끼어들어 진정 흐름이 끊긴다.
+      if (remain < TAIL_MIN && out.length > 1) {
+        out[out.length - 1].seconds += remain;
+        break;
+      }
+      out.push({
+        phase: src.phase,
+        text: src.text,
+        seconds: Math.min(src.seconds, remain),
+        anim: src.anim,
+        // 두 바퀴째부터는 소리 지시를 따르지 않고 그때 상태를 유지한다.
+        // 본체 첫 단계는 보통 "소리 없이 익히기"라 sound:false 인데, 그것이
+        // 그대로 복사되면 가장 차분해야 할 마지막 구간에서 배경음이 꺼진다.
+        sound: i < body.length ? src.sound : undefined
+      });
+      used += Math.min(src.seconds, remain);
       i++;
     }
     out.push(close);
@@ -184,8 +230,10 @@
 
   function renderSetup() {
     $('picked-title').textContent = S.session.title;
-    var row = $('opt-duration');
-    row.innerHTML = DURATIONS.map(function (d) {
+    // 이 편이 지원하는 시간만 그린다 — 화면에 없는 시간은 아무도 고를 수 없어야 한다.
+    var avail = DURATIONS.filter(function (d) { return S.session.durations.indexOf(d) !== -1; });
+    if (avail.indexOf(S.duration) === -1) S.duration = avail[0];
+    $('opt-duration').innerHTML = avail.map(function (d) {
       var on = (d === S.duration);
       return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-d="' + d + '">' +
         d + '분</button>';
@@ -194,6 +242,7 @@
 
   // ── 화면: 진행 ──
   function start() {
+    stopTimer();   // 어떤 경로로든 이전 타이머가 살아 있으면 여기서 끊는다
     S.timeline = buildTimeline(S.session, S.duration);
     S.bounds = [];
     var acc = 0;
@@ -259,12 +308,16 @@
       if (t < acc) { idx = i; break; }
     }
     if (idx === S.labelIdx) return;
+    var first = (S.labelIdx === -1);
     S.labelIdx = idx;
+    // 무대를 막 만들었을 때는 페이드 없이 바로 쓴다 —
+    // 그러지 않으면 새 호흡 단계마다 라벨이 잠깐 빈칸으로 남는다.
+    if (first) { el.textContent = cycle[idx][0]; return; }
     el.classList.add('fading');
-    setTimeout(function () {
+    schedule('labelTimer', function () {
       el.textContent = cycle[idx][0];
       el.classList.remove('fading');
-    }, 160);
+    }, LABEL_FADE_MS);
   }
 
   function applyStep(idx, immediate) {
@@ -291,10 +344,9 @@
       else JjamSound.stop();
     }
 
-    clearTimeout(S.fadeTimer);
-    if (immediate) { put(); return; }
+    if (immediate) { cancel('fadeTimer'); put(); return; }
     textEl.classList.add('fading');
-    S.fadeTimer = setTimeout(put, TEXT_FADE_MS);
+    schedule('fadeTimer', put, TEXT_FADE_MS);
   }
 
   function setPauseBtn(paused) {
@@ -309,6 +361,10 @@
       $('screen-play').classList.remove('paused');
       if (window.JjamSound) JjamSound.resume();
     } else {
+      // 크로스페이드 도중에 멈추면 글자가 반쯤 흐려진 채 굳거나, 벽시계
+      // setTimeout 이 살아남아 정지 중에 문구가 저절로 넘어간다.
+      // 예약된 전환을 지금 끝내 놓고 멈춘다 — 화면이 실제로 정지한다.
+      flushPending();
       S.pausedAt = performance.now();
       S.paused = true;
       $('screen-play').classList.add('paused');
@@ -319,7 +375,8 @@
 
   function stopTimer() {
     clearInterval(S.handle);
-    clearTimeout(S.fadeTimer);
+    cancel('fadeTimer');
+    cancel('labelTimer');
     S.handle = null;
   }
 

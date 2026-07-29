@@ -55,6 +55,15 @@ const PHASES = extract('PHASES', /var PHASES = \[([^\]]*)\];/, (m) =>
 const ANIM_HTML_KEYS = extract('ANIM_HTML', /var ANIM_HTML = \{([\s\S]*?)\n  \};/, (m) =>
   [...m[1].matchAll(/'([^']+)':/g)].map((x) => x[1]));
 
+// 재생기의 타임라인 규칙을 그대로 떼어 와 실제 재생 결과를 검사한다.
+// 규칙을 여기에 다시 적으면 app.js 가 바뀔 때 검증만 옛 규칙에 머문다.
+const TAIL_MIN = extract('TAIL_MIN', /var TAIL_MIN = (\d+);/, (m) => Number(m[1]));
+const buildTimeline = extract(
+  'buildTimeline',
+  /function buildTimeline\(session, minutes\) \{[\s\S]*?\n  \}/,
+  (m) => new Function('TAIL_MIN', 'return ' + m[0])(TAIL_MIN)
+);
+
 if (errors.length) {
   for (const e of errors) console.error(`  ✗ ${e}`);
   process.exit(1);
@@ -92,6 +101,7 @@ const BANNED = [
   { re: /잠(이|을)?\s?(들|자|잘|와|온)/, why: '수면 유도 표현 (PRD 3절: "잠이 듭니다" 금지)' },
   { re: /최면/, why: '최면형 표현 금지' },
   { re: /졸(려|리|음)/, why: '수면 유도 표현 금지' },
+  { re: /하품/, why: '하품은 대표적인 졸음 신호 — 수면 유도 금지(PRD 1.4 비목표)' },
   { re: /기도|기도문|하나님|부처|천국|영혼|명상법|만트라|주문을\s?외/, why: '종교적 표현·만트라 금지' },
   { re: /무서운|무섭|어둠\s?속|혼자\s?남|죽음|이별|사라져\s?버/, why: '무섭거나 슬픈 상상 소재 금지' },
   { re: /번쩍|깜빡깜빡|빠르게\s?움직/, why: '빠른 점멸·급격한 전환 연상 표현 금지' }
@@ -219,14 +229,45 @@ data.sessions.forEach((ss, i) => {
   const close = ss.steps[ss.steps.length - 1].seconds || 0;
   const shortest = Math.min(...(ss.durations || [0]));
   const budget = shortest * 60 - ready - close;
-  if (budget < 20) {
+  if (budget < TAIL_MIN) {
     err(`${where}: ${shortest}분 모드에서 본체에 쓸 시간이 ${budget}초뿐입니다 ` +
         `(준비 ${ready}초 + 마무리 ${close}초). 준비·마무리를 줄여 주세요.`);
   }
 
-  // 소리를 켠 단계가 하나도 없으면 세션의 sound 프리셋이 죽은 설정이 된다.
-  if (ss.sound !== 'none' && !ss.steps.some((st) => st.sound === true)) {
-    warn(`${where}: sound '${ss.sound}' 를 켜는 단계가 없습니다 — 배경음이 한 번도 재생되지 않습니다.`);
+  // ── 실제 재생 결과 검사 ──
+  // 데이터만 보면 멀쩡한데 특정 시간 모드에서만 깨지는 것들이 있다.
+  // 재생기의 타임라인을 그대로 만들어 본다.
+  {
+    for (const d of ss.durations || []) {
+      let tl;
+      try { tl = buildTimeline(ss, d); } catch (e) {
+        err(`${where}: ${d}분 타임라인 생성 실패 — ${e.message}`);
+        continue;
+      }
+      const sum = tl.reduce((a, x) => a + (x.seconds || 0), 0);
+      if (sum !== d * 60) {
+        err(`${where}: ${d}분 모드의 실제 재생 길이가 ${sum}초입니다 (선언 ${d * 60}초). ` +
+            `PRD 완료 기준은 ±5초입니다.`);
+      }
+      // 짧게 스쳐 가는 문구는 읽히지 않는다.
+      const tooShort = tl.filter((x) => x.seconds < 5);
+      if (tooShort.length) {
+        err(`${where}: ${d}분 모드에 ${tooShort[0].seconds}초짜리 단계가 있습니다 — 읽을 수 없습니다.`);
+      }
+      // 소리 상태를 앞에서부터 따라가, 그 시간 모드에서 배경음이 한 번이라도 나는지 본다.
+      // (본체 첫 단계만 재생되는 1분 모드에서 소리가 통째로 빠지는 일이 실제로 있었다.)
+      if (ss.sound !== 'none') {
+        let on = false, everOn = false;
+        for (const st of tl) {
+          if (st.sound !== undefined) on = st.sound;
+          if (on) { everOn = true; break; }
+        }
+        if (!everOn) {
+          warn(`${where}: ${d}분 모드에서 배경음 '${ss.sound}' 가 한 번도 재생되지 않습니다 ` +
+               `— 그 시간에는 세션의 sound 설정이 죽은 값입니다.`);
+        }
+      }
+    }
   }
 });
 
