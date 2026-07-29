@@ -286,18 +286,27 @@ button { font-family: inherit; cursor: pointer; }
   flex: none;
 }
 
-/* 1) circle-46 — 4초 커지고(들숨) 6초 작아진다(날숨). 10초 주기.
-   라벨은 같은 주기의 opacity 키프레임으로 교대 — 소리 없이도 진행이 읽힌다. */
+/* 호흡 라벨(들이쉬어요/멈춰요/내쉬어요)은 CSS 키프레임이 아니라 js/app.js 가
+   타이머로 바꾼다. 이유: prefers-reduced-motion 이 켜진 환경(교실 전자칠판의
+   접근성 설정, 일부 브라우저의 강제 옵션)에서는 CSS 애니메이션 타임라인이 아예
+   멈춰 버려, 키프레임으로 만든 라벨 교대까지 함께 정지한다. 그러면 소리를 끈
+   교실에서 진행을 읽을 방법이 사라진다. 움직임은 CSS(취향껏 멈춰도 됨),
+   진행 안내는 JS(항상 동작) 로 나눈다. */
+.anim-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem); font-weight: 700;
+  color: var(--deep-ink);
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+}
+.anim-label.fading { opacity: 0.25; }
+
+/* 1) circle-46 — 4초 커지고(들숨) 6초 작아진다(날숨). 10초 주기. */
 @keyframes bc-scale {
   0%   { transform: scale(0.55); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
   40%  { transform: scale(1); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
   100% { transform: scale(0.55); }
-}
-@keyframes bc-label-in {
-  0% { opacity: 1; } 36% { opacity: 1; } 44% { opacity: 0; } 96% { opacity: 0; } 100% { opacity: 1; }
-}
-@keyframes bc-label-out {
-  0% { opacity: 0; } 36% { opacity: 0; } 44% { opacity: 1; } 96% { opacity: 1; } 100% { opacity: 0; }
 }
 .breath-circle { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .bc-disc {
@@ -306,17 +315,8 @@ button { font-family: inherit; cursor: pointer; }
   border: 2px solid rgba(255, 255, 255, 0.35);
   animation: bc-scale 10s infinite;
 }
-.bc-label {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem; font-weight: 700; color: var(--deep-ink);
-  opacity: 0;
-}
-.bc-label.in { animation: bc-label-in 10s infinite; }
-.bc-label.out { animation: bc-label-out 10s infinite; }
 
-/* 2) box-4444 — 정사각 둘레를 도는 점. 4초 × 4변 = 16초 주기.
-   변마다 라벨(들이쉬어요/멈춰요/내쉬어요/멈춰요)이 교대로 나타난다. */
+/* 2) box-4444 — 정사각 둘레를 도는 점. 4초 × 4변 = 16초 주기. */
 @keyframes bb-dot {
   0%   { top: 0;    left: 0;    }
   25%  { top: 0;    left: 100%; }
@@ -324,10 +324,6 @@ button { font-family: inherit; cursor: pointer; }
   75%  { top: 100%; left: 0;    }
   100% { top: 0;    left: 0;    }
 }
-@keyframes bb-l1 { 0% { opacity: 1; } 21% { opacity: 1; } 25% { opacity: 0; } 96% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes bb-l2 { 0% { opacity: 0; } 21% { opacity: 0; } 25% { opacity: 1; } 46% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
-@keyframes bb-l3 { 0% { opacity: 0; } 46% { opacity: 0; } 50% { opacity: 1; } 71% { opacity: 1; } 75% { opacity: 0; } 100% { opacity: 0; } }
-@keyframes bb-l4 { 0% { opacity: 0; } 71% { opacity: 0; } 75% { opacity: 1; } 96% { opacity: 1; } 100% { opacity: 0; } }
 .breath-box { position: relative; width: 78%; height: 78%; }
 .bb-square {
   position: absolute; inset: 0;
@@ -342,16 +338,6 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 0 18px rgba(255, 255, 255, 0.65);
   animation: bb-dot 16s linear infinite;
 }
-.bb-label {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem; font-weight: 700; color: var(--deep-ink);
-  opacity: 0;
-}
-.bb-label.l1 { animation: bb-l1 16s infinite; }
-.bb-label.l2 { animation: bb-l2 16s infinite; }
-.bb-label.l3 { animation: bb-l3 16s infinite; }
-.bb-label.l4 { animation: bb-l4 16s infinite; }
 
 /* 3) glow — 소리·상상 여행용. 아주 느린 숨결 같은 빛. 12초 주기. */
 @keyframes glow-pulse {
@@ -371,14 +357,14 @@ button { font-family: inherit; cursor: pointer; }
   background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent 70%);
 }
 
-/* prefers-reduced-motion — 크기·이동 애니메이션을 모두 멈추고,
-   호흡 리듬은 라벨의 느린 페이드(opacity)만으로 전달한다 (광과민성 대응). */
+/* prefers-reduced-motion — 크기·이동 애니메이션은 멈춘다.
+   진행 안내(라벨 교대)는 JS 타이머라 그대로 살아 있고, 화면 변화는
+   글자의 느린 페이드뿐이다 (광과민성 발작 예방). */
 @media (prefers-reduced-motion: reduce) {
-  .bc-disc { animation: none; transform: scale(0.8); }
+  .bc-disc { animation: none; transform: scale(0.82); }
   .bb-dot { display: none; }
   .calm-glow { animation: none; opacity: 0.75; }
   .type-card, .type-card:hover { transform: none; transition: none; }
-  .play-text { transition: opacity 0.4s ease; }
 }
 
 /* ── 마무리 ── */

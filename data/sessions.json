@@ -48,6 +48,239 @@
         { "phase": "close", "text": "두 손을 무릎에 내려놓고, 천천히 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
       ],
       "closing": "풍선처럼 가벼워진 마음, 그대로 수업을 시작해요."
+    },
+    {
+      "id": "breath-004",
+      "title": "손가락 산 오르기",
+      "type": "breath",
+      "durations": [1, 3, 5],
+      "sound": "wind",
+      "steps": [
+        { "phase": "ready", "text": "한 손을 펴고, 다른 손 검지를 준비해 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "breath", "text": "손가락으로 엄지를 타고 올라가며 들이쉬어요.", "seconds": 60, "anim": "circle-46", "sound": false },
+        { "phase": "breath", "text": "내려올 때는 더 천천히, 길게 내쉬어요.", "seconds": 60, "anim": "circle-46", "sound": true },
+        { "phase": "breath", "text": "다섯 손가락을 모두 오르내리며 이어 가요.", "seconds": 60, "anim": "circle-46", "sound": true },
+        { "phase": "breath", "text": "이번엔 손을 바꿔서 반대편 산을 올라 볼까요.", "seconds": 60, "anim": "circle-46", "sound": true },
+        { "phase": "close", "text": "두 손을 무릎에 내려놓고, 마지막 숨을 길게 내쉬어요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "손끝까지 차분해졌어요. 이제 시작할 준비가 됐어요."
+    },
+
+    {
+      "id": "sound-001",
+      "title": "빗소리 듣기",
+      "type": "sound",
+      "durations": [1, 3, 5],
+      "sound": "rain",
+      "steps": [
+        { "phase": "ready", "text": "눈을 살짝 감거나, 책상 위 한 곳을 가만히 봐 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "sound", "text": "창밖에 비가 내려요. 소리에만 귀를 기울여 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "sound", "text": "빗소리 사이로, 더 작은 소리도 들리는지 찾아봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "듣는 동안 숨은 천천히, 조금 더 길게 내쉬어요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "sound", "text": "빗소리가 조금씩 멀어진다고 생각하며 들어 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "지금 교실이 얼마나 조용한지 느껴 봐요.", "seconds": 60, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "귀가 조용해지면 교실도 조용해져요. 잘 들었어요."
+    },
+    {
+      "id": "sound-002",
+      "title": "파도 소리 듣기",
+      "type": "sound",
+      "durations": [1, 3, 5],
+      "sound": "wave",
+      "steps": [
+        { "phase": "ready", "text": "어깨를 한 번 내리고, 편하게 앉아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "sound", "text": "파도가 밀려왔다가 밀려가요. 그 소리를 따라가 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "파도가 밀려올 때 들이쉬고, 밀려갈 때 내쉬어요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "sound", "text": "파도 소리가 몇 번 오고 갔는지 세어 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "sound", "text": "이번엔 세지 말고, 그냥 듣기만 해 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "몸에서 힘이 빠진 곳이 어디인지 느껴 봐요.", "seconds": 60, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 고개를 들어요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "파도처럼 오르내리던 마음이 잔잔해졌어요."
+    },
+    {
+      "id": "sound-003",
+      "title": "모닥불 곁에서",
+      "type": "sound",
+      "durations": [1, 3, 5],
+      "sound": "fire",
+      "steps": [
+        { "phase": "ready", "text": "두 손을 마주 비벼 따뜻하게 만들어 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "sound", "text": "앞에 모닥불이 있어요. 타닥타닥 소리를 들어 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "따뜻한 기운이 손끝까지 닿는다고 상상해요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "불을 바라보듯, 숨을 아주 천천히 쉬어요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "sound", "text": "소리가 커졌다 작아지는 것을 가만히 따라가 봐요.", "seconds": 55, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "몸이 따뜻하고 느긋해진 것을 느껴 봐요.", "seconds": 60, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "손을 무릎에 내리고, 천천히 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "따뜻하고 조용한 마음으로 다시 시작해요."
+    },
+
+    {
+      "id": "imagine-001",
+      "title": "구름 위에 눕기",
+      "type": "imagine",
+      "durations": [1, 3, 5],
+      "sound": "wind",
+      "steps": [
+        { "phase": "ready", "text": "편하게 앉아 눈을 살짝 감아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "imagine", "text": "커다랗고 폭신한 구름 위에 누웠다고 상상해요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "구름이 아주 천천히 떠가요. 몸이 살짝 흔들려요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "얼굴에 따뜻한 햇살이 닿아요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "아래로 파란 들판이 넓게 펼쳐져 있어요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "구름처럼 가볍게, 숨을 천천히 쉬어요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "구름이 우리 교실 위로 다시 돌아와요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "발이 바닥에 닿았어요. 몸이 편안해요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 교실을 둘러봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "가볍고 편안해졌어요. 이제 시작할 준비가 됐어요."
+    },
+    {
+      "id": "imagine-002",
+      "title": "숲속 오솔길",
+      "type": "imagine",
+      "durations": [1, 3, 5],
+      "sound": "wind",
+      "steps": [
+        { "phase": "ready", "text": "등을 펴고 앉아, 어깨를 한 번 내려 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "imagine", "text": "초록빛 숲으로 난 작은 길 앞에 서 있어요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "한 걸음씩 아주 천천히 걸어 들어가요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "나뭇잎 사이로 햇빛이 반짝여요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "발밑에서 부드러운 흙 냄새가 나요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "커다란 나무 앞에 앉아 잠깐 쉬어요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "숲의 시원한 공기를 천천히 들이마셔요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "왔던 길을 따라 교실로 돌아와요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "숲에서 쉬고 온 것처럼 시원해졌어요."
+    },
+    {
+      "id": "imagine-003",
+      "title": "따뜻한 물빛 호수",
+      "type": "imagine",
+      "durations": [1, 3, 5],
+      "sound": "wave",
+      "steps": [
+        { "phase": "ready", "text": "두 손을 무릎에 놓고, 눈을 살짝 감아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "imagine", "text": "아주 잔잔한 호수 앞에 앉아 있어요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "물 위로 햇빛이 반짝반짝 퍼져요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "작은 조약돌 하나를 물에 살짝 던져요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "동그란 물결이 천천히 넓게 퍼져 나가요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "imagine", "text": "물결이 사라지고, 호수가 다시 잔잔해져요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "내 마음도 저 호수처럼 잔잔해졌는지 살펴봐요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "호수를 바라보듯 천천히 숨을 쉬어요.", "seconds": 40, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 고개를 들어요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "잔잔한 호수처럼 조용해졌어요. 잘했어요."
+    },
+
+    {
+      "id": "relax-001",
+      "title": "주먹 꽉, 스르르",
+      "type": "relax",
+      "durations": [1, 3, 5],
+      "sound": "rain",
+      "steps": [
+        { "phase": "ready", "text": "두 손을 무릎 위에 올리고 앉아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "relax", "text": "두 주먹을 꽉 쥐어요. 다섯을 세는 동안 그대로.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "스르르 힘을 빼요. 손이 어떤 느낌인지 느껴 봐요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "이번엔 어깨를 귀까지 올려 꽉 힘을 줘요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "어깨를 툭 내려놓아요. 훨씬 가벼워졌어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "발가락을 꼬옥 오므렸다가, 스르르 펴 볼까요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "힘이 빠진 몸으로 숨을 길게 내쉬어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "손을 무릎에 놓고, 천천히 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "힘을 빼면 몸이 먼저 쉬어요. 잘했어요."
+    },
+    {
+      "id": "relax-002",
+      "title": "얼굴 힘 빼기",
+      "type": "relax",
+      "durations": [1, 3, 5],
+      "sound": "wind",
+      "steps": [
+        { "phase": "ready", "text": "편하게 앉아, 얼굴에서 힘을 한 번 빼 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "relax", "text": "눈을 꼬옥 감고 코에 힘을 줘요. 그대로 다섯.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "스르르 풀어요. 얼굴이 넓어진 느낌이 들어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "입을 크게 벌려 하품하듯 늘려 볼까요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "턱에 힘을 빼고, 이를 살짝 벌려 둬요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "눈썹 사이를 펴 볼까요. 이마가 편안해져요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "편안해진 얼굴로 천천히 숨을 쉬어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "얼굴이 편안해지면 마음도 느슨해져요."
+    },
+    {
+      "id": "relax-003",
+      "title": "위에서 아래로",
+      "type": "relax",
+      "durations": [1, 3, 5],
+      "sound": "wave",
+      "steps": [
+        { "phase": "ready", "text": "앉은 채로 두 발을 바닥에 나란히 놓아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "relax", "text": "머리와 이마에 힘을 줬다가, 스르르 풀어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "어깨를 올렸다가, 툭 내려놓아요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "두 팔을 쭉 뻗어 힘을 줬다가, 무릎에 내려놓아요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "배에 힘을 줬다가, 천천히 풀어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "relax", "text": "다리에 힘을 줬다가, 바닥에 툭 내려놓아요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "머리부터 발끝까지 힘이 빠진 채로 숨을 쉬어요.", "seconds": 45, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 고개를 들고, 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "몸이 한 뼘 가벼워졌어요. 이제 시작해요."
+    },
+
+    {
+      "id": "mind-001",
+      "title": "고마운 것 하나",
+      "type": "mind",
+      "durations": [1, 3, 5],
+      "sound": "rain",
+      "steps": [
+        { "phase": "ready", "text": "편하게 앉아, 눈을 살짝 감아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "mind", "text": "오늘 고마웠던 일 하나를 떠올려 봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "누가 있었나요? 그때 어떤 기분이었나요?", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "마음속으로 조용히 고맙다고 말해 봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "나에게 고마운 점도 하나 찾아볼까요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "그 마음을 안고 숨을 천천히 쉬어요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 친구들을 한 번 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "고마운 마음이 남았어요. 그대로 시작해요."
+    },
+    {
+      "id": "mind-002",
+      "title": "지금 내 기분",
+      "type": "mind",
+      "durations": [1, 3, 5],
+      "sound": "wave",
+      "steps": [
+        { "phase": "ready", "text": "두 손을 무릎에 놓고, 조용히 앉아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "mind", "text": "지금 내 기분에 이름을 붙인다면 무엇일까요?", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "그 기분이 몸 어디에서 느껴지는지 찾아봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "좋은 기분도, 불편한 기분도 그대로 두어도 괜찮아요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "숨을 내쉬며, 그 기분이 조금 느슨해지게 해요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "수업이 끝날 때 어떤 기분이면 좋을지 떠올려 봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 고개를 들어요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "내 기분을 알아차렸어요. 이제 시작할 준비가 됐어요."
+    },
+    {
+      "id": "mind-003",
+      "title": "작은 친절 떠올리기",
+      "type": "mind",
+      "durations": [1, 3, 5],
+      "sound": "fire",
+      "steps": [
+        { "phase": "ready", "text": "어깨를 한 번 내리고, 편하게 앉아 볼까요.", "seconds": 10, "anim": "none", "sound": false },
+        { "phase": "mind", "text": "오늘 누군가에게 받은 작은 친절을 떠올려 봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "아주 사소한 것이어도 좋아요. 눈인사 하나라도요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "이번엔 내가 누군가에게 해 준 일을 찾아봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "mind", "text": "다음 쉬는 시간에 해 볼 친절 하나를 정해 봐요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "breath", "text": "그 마음을 안고 숨을 천천히 쉬어요.", "seconds": 50, "anim": "glow", "sound": true },
+        { "phase": "close", "text": "천천히 눈을 뜨고, 앞을 봐요.", "seconds": 10, "anim": "fade", "sound": false }
+      ],
+      "closing": "따뜻한 마음 하나를 챙겼어요. 이제 시작해요."
     }
   ]
 }

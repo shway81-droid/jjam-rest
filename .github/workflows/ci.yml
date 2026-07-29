@@ -1,0 +1,24 @@
+name: CI
+
+# PR·푸시 시 data/sessions.json 정적 검증을 실행하는 게이트.
+# 빌드 단계가 없는 정적 사이트라, 데이터 오류와 안전 기준 위반을 배포 전에
+# 잡을 곳이 여기뿐이다.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 쉼 데이터 검증
+        run: node scripts/validate-data.mjs
+      - name: 웹폰트 글자 커버리지 검증
+        run: node scripts/check-font-coverage.mjs

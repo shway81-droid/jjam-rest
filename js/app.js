@@ -32,14 +32,22 @@
   var ANIM_HTML = {
     'circle-46':
       '<div class="breath-circle"><div class="bc-disc"></div>' +
-      '<div class="bc-label in">들이쉬어요</div><div class="bc-label out">내쉬어요</div></div>',
+      '<div class="anim-label"></div></div>',
     'box-4444':
       '<div class="breath-box"><div class="bb-square"></div><div class="bb-dot"></div>' +
-      '<div class="bb-label l1">들이쉬어요</div><div class="bb-label l2">멈춰요</div>' +
-      '<div class="bb-label l3">내쉬어요</div><div class="bb-label l4">멈춰요</div></div>',
+      '<div class="anim-label"></div></div>',
     'glow': '<div class="calm-glow"></div>',
     'fade': '<div class="calm-still"></div>',
     'none': ''
+  };
+
+  // 호흡 라벨 주기 — [문구, 초] 를 순서대로 도는 사이클.
+  // CSS 키프레임이 아니라 여기서 타이머로 바꾼다: prefers-reduced-motion 환경에서는
+  // CSS 애니메이션 타임라인이 멈춰 라벨 교대까지 정지해 버리기 때문이다.
+  // 초 구성은 CSS 의 같은 이름 키프레임과 길이가 일치해야 한다(원 10초·네모 16초).
+  var ANIM_CYCLE = {
+    'circle-46': [['들이쉬어요', 4], ['내쉬어요', 6]],
+    'box-4444': [['들이쉬어요', 4], ['멈춰요', 4], ['내쉬어요', 4], ['멈춰요', 4]]
   };
 
   // ── 상태 ──
@@ -56,6 +64,8 @@
     total: 0,
     stepIdx: -1,
     curAnim: null,
+    animStartAt: 0,    // 지금 무대가 만들어진 시점(경과 초) — 라벨 위상 계산 기준
+    labelIdx: -1,
     startAt: 0,        // performance.now() 기준
     pausedAccum: 0,
     pausedAt: 0,
@@ -191,6 +201,8 @@
     S.total = acc;
     S.stepIdx = -1;
     S.curAnim = null;
+    S.animStartAt = 0;
+    S.labelIdx = -1;
     S.pausedAccum = 0;
     S.paused = false;
     saveStore();
@@ -225,6 +237,32 @@
     var idx = 0;
     while (idx < S.bounds.length - 1 && e >= S.bounds[idx]) idx++;
     if (idx !== S.stepIdx) applyStep(idx, false);
+    updateLabel(e);
+  }
+
+  // 호흡 라벨 — 무대가 만들어진 시점부터의 경과를 사이클에 대입한다.
+  // CSS 애니메이션도 삽입 시점에 시작하므로 원·점의 움직임과 위상이 맞는다.
+  // 일시정지 중에는 elapsedSec 이 멈춰 있어 라벨도 함께 멈춘다.
+  function updateLabel(e) {
+    var cycle = ANIM_CYCLE[S.curAnim];
+    var el = $('play-anim').querySelector('.anim-label');
+    if (!cycle || !el) { S.labelIdx = -1; return; }
+
+    var period = 0, i;
+    for (i = 0; i < cycle.length; i++) period += cycle[i][1];
+    var t = (e - S.animStartAt) % period;
+    var acc = 0, idx = 0;
+    for (i = 0; i < cycle.length; i++) {
+      acc += cycle[i][1];
+      if (t < acc) { idx = i; break; }
+    }
+    if (idx === S.labelIdx) return;
+    S.labelIdx = idx;
+    el.classList.add('fading');
+    setTimeout(function () {
+      el.textContent = cycle[idx][0];
+      el.classList.remove('fading');
+    }, 160);
   }
 
   function applyStep(idx, immediate) {
@@ -239,6 +277,9 @@
       if (st.anim !== S.curAnim) {
         $('play-anim').innerHTML = ANIM_HTML[st.anim] || '';
         S.curAnim = st.anim;
+        S.animStartAt = elapsedSec();
+        S.labelIdx = -1;
+        updateLabel(S.animStartAt);
       }
     }
 
