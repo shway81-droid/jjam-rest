@@ -1,0 +1,36 @@
+{
+  "name": "짬짬이 쉼",
+  "short_name": "짬짬이 쉼",
+  "description": "수업 전 1~5분, 들뜬 반을 차분하게 만드는 자동 진행 쉼 활동",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F2FAF9",
+  "theme_color": "#0E7C86",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
