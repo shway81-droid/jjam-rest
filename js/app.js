@@ -216,6 +216,8 @@
     $('play-anim').innerHTML = '';
     $('play-text').textContent = '';
     $('play-text').classList.remove('fading');
+    // 첫 tick 전까지 이전 세션의 남은 시간이 남아 보이지 않게 미리 채운다.
+    $('play-remain').textContent = fmt(S.total);
     $('screen-play').classList.remove('paused');
     setPauseBtn(false);
     show('screen-play');
