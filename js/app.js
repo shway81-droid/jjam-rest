@@ -373,6 +373,29 @@
     setPauseBtn(S.paused);
   }
 
+  // ── 다음 단계로 넘기기 ──
+  // 진행되는 모든 것(남은 시간·단계 경계·호흡 라벨 위상)이 elapsedSec() 하나에서
+  // 파생된다. 그래서 단계를 건너뛰는 일은 "시계를 앞으로 당기는" 것으로 끝난다 —
+  // stepIdx 만 따로 밀면 남은 시간과 단계가 어긋난다.
+  // 넘긴 시간은 뒤 단계로 되돌려 주지 않는다. 넘긴 만큼 세션이 일찍 끝나는 것이
+  // 이 버튼을 누른 사람의 의도다.
+  function skipStep() {
+    // 일시정지 중에는 elapsedSec() 이 아직 pausedAccum 에 반영되지 않은 시간을
+    // 품고 있어 계산이 어긋난다. 그 상태에서는 버튼을 죽여 둔다(CSS 로도 흐리게).
+    if (S.paused || S.stepIdx < 0 || !S.handle) return;
+    var remain = S.bounds[S.stepIdx] - elapsedSec();
+    if (remain <= 0) return;
+    // 크로스페이드 예약이 살아 있으면 먼저 끝낸다 — 그러지 않으면 넘긴 뒤에
+    // 옛 문구가 뒤늦게 화면을 덮어쓴다.
+    flushPending();
+    var jump = remain + 0.05;   // 경계를 확실히 넘긴다(부동소수 여유)
+    S.startAt -= jump * 1000;
+    // 무대의 CSS 애니메이션은 벽시계로 계속 돌고 있다. 라벨 위상 기준점을 같은
+    // 만큼 밀어 두지 않으면 원·점의 움직임과 "들이쉬어요" 가 어긋난다.
+    S.animStartAt += jump;
+    tick();   // 마지막 단계에서 눌렀으면 tick 안에서 finish() 로 간다
+  }
+
   function stopTimer() {
     clearInterval(S.handle);
     cancel('fadeTimer');
@@ -444,6 +467,7 @@
     $('btn-setup-back').addEventListener('click', goHome);
     $('btn-start').addEventListener('click', start);
     $('btn-pause').addEventListener('click', togglePause);
+    $('btn-skip').addEventListener('click', skipStep);
     $('btn-again').addEventListener('click', function () {
       S.session = recommend(S.type, S.session.id) || S.session;
       renderSetup();

@@ -275,9 +275,22 @@ button { font-family: inherit; cursor: pointer; }
 .btn-pause:hover { background: rgba(255, 255, 255, 0.2); }
 .btn-pause:focus-visible { outline: 3px solid #ffd34d; outline-offset: 2px; }
 
+/* 다음 단계 — 일시정지보다 한 단계 약하게. 진행 화면의 기본은 여전히
+   "아무것도 누르지 않는 것"이고, 이 버튼은 눈에 먼저 들어오면 안 된다. */
+.btn-skip {
+  background: none;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--deep-dim);
+  font-weight: 500;
+}
+.btn-skip:hover { background: rgba(255, 255, 255, 0.12); color: var(--deep-ink); }
+
 /* 일시정지 — 소리(JS)·타이머(JS)와 함께 애니메이션도 멈춘다 */
 .play.paused .play-anim * { animation-play-state: paused !important; }
 .play.paused .play-text { opacity: 0.55; }
+/* 멈춘 동안에는 단계를 넘길 수 없다 — js/app.js 의 skipStep 이 그 상태를
+   거부하므로, 눌러도 안 되는 버튼을 눌러 보게 두지 않는다. */
+.play.paused .btn-skip { opacity: 0.3; pointer-events: none; }
 
 /* ── 애니메이션 무대 ── */
 .play-anim {
