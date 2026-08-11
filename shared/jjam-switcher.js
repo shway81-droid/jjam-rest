@@ -1,7 +1,7 @@
 /* ===================================================================
    짬짬이 사이트 전환 — 헤더에 자매 사이트를 바로 놓는다
    ===================================================================
-   짬짬이 게임·퀴즈·영상·이야기·쉼은 저장소가 다섯으로 갈라져 있지만 선생님에게는
+   짬짬이 게임·퀴즈·영상·이야기·낱말은 저장소가 다섯으로 갈라져 있지만 선생님에게는
    "자투리 시간에 쓰는 짬짬이" 하나다. 지금은 한 곳에 들어오면 나머지가
    있다는 걸 알 방법이 없어서, 헤더에서 곧바로 건너갈 수 있게 한다.
 
@@ -14,7 +14,7 @@
      <div class="jjam-switch" data-site="game"></div>
      <script src="shared/jjam-switcher.js" defer></script>
 
-   data-site 는 "지금 있는 곳"이다(game | quiz | video | story | rest).
+   data-site 는 "지금 있는 곳"이다(game | quiz | video | story | word).
    그 항목은 빠지고 SITES 의 나머지만 그려진다.
 
    이 파일은 다섯 저장소에서 글자 하나까지 같아야 한다.
@@ -30,8 +30,9 @@
   // label — 화면에 보이는 이름. 폭을 맞추려고 띄어쓰기를 넣지 않았다.
   // go    — 화면 낭독기가 읽는 문장. 조사(으로/로)가 이름마다 달라 통째로 적는다.
   //
-  // 쉼(jjam-rest)은 아직 여기 넣지 않는다 — 링크를 걸 시점을 따로 정하기로 했다.
-  // 다시 걸 때는 아래에 rest 한 벌만 되살리면 된다(아이콘은 ART.rest 에 그대로 있다).
+  // 짬짬이 계열 저장소는 이보다 많지만(쉼·스트레칭·그리기), 헤더에 거는 것은
+  // 사용자가 정한 다섯 곳뿐이다 — 게임·퀴즈·영상·이야기·낱말.
+  // 나중에 쉼을 다시 걸 때는 아래 한 벌만 되살리면 된다(아이콘은 ART.rest 에 그대로 있다).
   //   { key: 'rest', label: '짬짬이쉼', go: '짬짬이 쉼으로 가기',
   //     url: 'https://shway81-droid.github.io/jjam-rest/' }
   var SITES = [
@@ -42,7 +43,9 @@
     { key: 'video', label: '짬짬이영상',   go: '짬짬이 영상으로 가기',
       url: 'https://shway81-droid.github.io/jjam-video/' },
     { key: 'story', label: '짬짬이이야기', go: '짬짬이 이야기로 가기',
-      url: 'https://shway81-droid.github.io/jjam-story/' }
+      url: 'https://shway81-droid.github.io/jjam-story/' },
+    { key: 'word',  label: '짬짬이낱말',   go: '짬짬이 낱말로 가기',
+      url: 'https://shway81-droid.github.io/jjam-word/' }
   ];
 
   // 각 사이트의 favicon.svg 와 같은 그림 — 둥근 타일 + 우상단 "자투리 시간" 시계 배지.
@@ -73,6 +76,11 @@
       '<rect width="100" height="100" rx="24" fill="#6145B5"/>' +
       '<path d="M17 43c8.5-4.5 17-4.5 26 0v37c-9-4.5-17.5-4.5-26 0z" fill="#FFFFFF"/>' +
       '<path d="M71 43c-8.5-4.5-17-4.5-26 0v37c9-4.5 17.5-4.5 26 0z" fill="#E8DEFF"/>' + BADGE,
+    word:
+      '<rect width="100" height="100" rx="24" fill="#E4576E"/>' +
+      '<path d="M20 36h34a10 10 0 0 1 10 10v14a10 10 0 0 1-10 10H38L24 82V70h-4a10 10 0 0 1-10-10' +
+      'V46a10 10 0 0 1 10-10z" fill="#FFFFFF"/>' +
+      '<path d="M24 44h26v20h-7V51H24z" fill="#E4576E"/>' + BADGE,
     // rest 는 SITES 에 아직 없어서 지금은 그려지지 않는다. 링크를 거는 순간
     // 바로 쓰도록 그림만 남겨 둔다 (jjam-rest 의 favicon.svg 와 같은 그림).
     rest:
