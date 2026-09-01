@@ -296,6 +296,15 @@
       // 고를 것이 없으면 드롭다운 대신 이름만 — 눌러도 아무 일이 없는 UI 는 두지 않는다.
       name.textContent = voiceLabel(voices[0]);
     }
+
+    // 자연스러운 목소리가 하나도 없을 때만 어디서 얻는지 알려 준다.
+    // 마이크로소프트 신경망 목소리는 Edge 에만 노출된다 — 같은 컴퓨터라도
+    // 크롬에서는 목록에 아예 나타나지 않는다. 이미 가진 사람에게는 잔소리이므로
+    // 그때는 띄우지 않는다.
+    var hasNatural = voices.some(function (v) { return /neural|natural/i.test(v.name); });
+    var tip = $('voice-tip');
+    tip.hidden = hasNatural;
+    if (!hasNatural) tip.textContent = 'Edge 로 열면 더 자연스러운 목소리를 고를 수 있어요.';
   }
 
   // ── 화면: 진행 ──

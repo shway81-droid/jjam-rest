@@ -228,6 +228,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 .voice-pick select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .voice-name { font-size: 0.95rem; color: var(--ink-soft); }
+/* 안내는 줄을 통째로 차지한다 — 목소리 이름 옆에 끼어들면 둘 다 잘린다. */
+.voice-tip { flex-basis: 100%; margin: 0; font-size: 0.85rem; color: var(--ink-soft); }
 
 .btn-sm { font-size: 0.9rem; padding: 0.45rem 0.9rem; }
 .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent-deep); }
