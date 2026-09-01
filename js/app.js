@@ -259,17 +259,28 @@
         o[1] + '</button>';
     }).join('');
 
-    // 기기에 한국어 목소리가 둘 이상이면 고를 수 있게 한다. 윈도우에는 보통
-    // 오래된 기본 목소리와 자연스러운 신경망 목소리가 함께 있어, 어느 쪽으로
-    // 들리는지가 이 활동의 인상을 좌우한다.
+    // 어떤 목소리로 읽는지 늘 보여 준다. 윈도우에는 보통 오래된 기본 목소리와
+    // 자연스러운 신경망 목소리가 함께 있어 어느 쪽으로 들리는지가 이 활동의
+    // 인상을 좌우하고, 하나뿐인 기기에서도 시작 전에 들어볼 수 있어야 한다.
     var voices = JjamSpeech.list();
     var pickBox = $('voice-pick');
-    pickBox.hidden = !store.voice || voices.length < 2;
+    pickBox.hidden = !store.voice || !voices.length;
     if (pickBox.hidden) return;
-    $('voice-select').innerHTML = voices.map(function (v) {
-      return '<option value="' + esc(v.name) + '"' + (v.current ? ' selected' : '') + '>' +
-        esc(v.name) + (v.local ? '' : ' (인터넷 필요)') + '</option>';
-    }).join('');
+
+    var sel = $('voice-select');
+    var name = $('voice-name');
+    var many = voices.length > 1;
+    sel.hidden = !many;
+    name.hidden = many;
+    if (many) {
+      sel.innerHTML = voices.map(function (v) {
+        return '<option value="' + esc(v.name) + '"' + (v.current ? ' selected' : '') + '>' +
+          esc(v.name) + (v.local ? '' : ' (인터넷 필요)') + '</option>';
+      }).join('');
+    } else {
+      // 고를 것이 없으면 드롭다운 대신 이름만 — 눌러도 아무 일이 없는 UI 는 두지 않는다.
+      name.textContent = voices[0].name + (voices[0].local ? '' : ' (인터넷 필요)');
+    }
   }
 
   // ── 화면: 진행 ──

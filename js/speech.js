@@ -24,6 +24,7 @@ var JjamSpeech = (function () {
   var voice = null;
   var chosenName = '';    // 교사가 고른 목소리 이름 (없으면 순위 1등)
   var fellBack = false;   // 네트워크 목소리 실패로 기기 목소리로 되돌렸는가
+  var lastCount = 0;      // 마지막으로 본 한국어 목소리 개수
   var enabled = true;
   var muted = false;
   var warmed = false;
@@ -85,6 +86,7 @@ var JjamSpeech = (function () {
   }
 
   function refresh() {
+    lastCount = koreanVoices().length;
     var v = pickVoice();
     if (v) voice = v;
     return !!voice;
@@ -201,7 +203,7 @@ var JjamSpeech = (function () {
      두 개 이상일 때만 고르기를 띄운다(하나뿐이면 고를 것이 없다). */
   function list() {
     return ranked().map(function (v) {
-      return { name: v.name, local: !!v.localService, current: v === voice };
+      return { name: v.name, local: !!v.localService, current: v.name === currentName() };
     });
   }
 
@@ -230,10 +232,15 @@ var JjamSpeech = (function () {
     refresh();
     if (!s.addEventListener) return;
     s.addEventListener('voiceschanged', function () {
-      var had = !!voice;
+      var hadVoice = !!voice;
+      var hadCount = lastCount;
       refresh();
-      // 없다가 생겼을 때만 알린다 — 화면에 목소리 선택지를 이제 그려도 된다.
-      if (!had && voice && onReady) { try { onReady(); } catch (e) { /* 무시 */ } }
+      // 없다가 생겼을 때뿐 아니라 "개수가 달라졌을 때"도 알려야 한다.
+      // 크롬은 기기 목소리를 먼저 주고 네트워크 목소리(Google 한국의)를 뒤늦게
+      // 붙인다 — 1개→2개로 늘어나는 이 경우를 놓치면 고르기가 영영 안 나타난다.
+      if (onReady && ((!hadVoice && voice) || lastCount !== hadCount)) {
+        try { onReady(); } catch (e) { /* 무시 */ }
+      }
     });
   })();
 
