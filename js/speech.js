@@ -42,6 +42,7 @@ var JjamSpeech = (function () {
   // 걸리므로 app.js 가 다음 문구를 미리 만들어 두고(prime), 여기서는 꺼내 쓴다.
   var neural = false;
   var primed = {};           // 문구 → 만들어 둔 파형
+  var inflight = {};         // 문구 → 만들어지는 중인 약속
   var voiceHandle = null;    // 재생 중인 신경망 목소리
   var seq = 0;               // 늦게 도착한 합성 결과를 버리기 위한 표
 
@@ -224,16 +225,33 @@ var JjamSpeech = (function () {
 
   function usingNeural() { return neural; }
 
-  /* 미리 만들어 두기. 실패는 조용히 넘긴다 — 그때는 speak 가 그 자리에서
-     다시 만들고, 그것도 안 되면 화면 글자만으로 진행된다. */
+  /* 한 문구당 합성은 한 번만. 이것이 없으면 같은 문구를 primeFirst·primeAhead·
+     speak 가 각각 따로 만들어 큐에 쌓인다 — 합성이 실시간의 두 배라 그 중복이
+     그대로 지연이 되어, 1분 세션이 끝나도록 첫 문구가 나오지 않았다. */
+  function ensureWave(text) {
+    if (primed[text]) return Promise.resolve(primed[text]);
+    if (inflight[text]) return inflight[text];
+    var pr = JjamNeural.synth(text).then(function (w) {
+      primed[text] = w;
+      delete inflight[text];
+      return w;
+    }, function (e) {
+      delete inflight[text];
+      throw e;
+    });
+    inflight[text] = pr;
+    return pr;
+  }
+
+  /* 미리 만들어 두기. 실패는 조용히 넘긴다 — 그때는 speak 가 다시 시도하고,
+     그것도 안 되면 화면 글자만으로 진행된다. */
   function prime(text) {
-    if (!neural || !text || primed[text] || !window.JjamNeural) return Promise.resolve();
-    return JjamNeural.synth(text).then(function (w) { primed[text] = w; },
-                                       function () { /* 무시 */ });
+    if (!neural || !text || !window.JjamNeural) return Promise.resolve();
+    return ensureWave(text).then(function () {}, function () { /* 무시 */ });
   }
 
   // 한 세션이 끝나면 비운다 — 16kHz 파형이라 한 문장에 수백 KB 다.
-  function clearPrimed() { primed = {}; }
+  function clearPrimed() { primed = {}; inflight = {}; }
 
   function stopNeural() {
     if (voiceHandle) { try { voiceHandle.stop(); } catch (e) { /* 무시 */ } voiceHandle = null; }
@@ -257,9 +275,9 @@ var JjamSpeech = (function () {
     lastText = text;
     var w = primed[text];
     if (w) { playWave(w, mySeq); return; }
-    // 미리 만들어 둔 것이 없으면 지금 만든다. 그동안 화면 글자는 이미 떠 있다.
-    JjamNeural.synth(text).then(function (wav) {
-      primed[text] = wav;
+    // 아직 없으면 만들어지는 중인 것에 올라탄다(없으면 지금 만든다).
+    // 그동안 화면 글자는 이미 떠 있다.
+    ensureWave(text).then(function (wav) {
       playWave(wav, mySeq);
     }, function () { /* 조용히 — 활동은 글자만으로도 완결된다 */ });
   }

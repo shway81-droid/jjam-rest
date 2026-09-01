@@ -22,8 +22,14 @@
 
   var PHASES = ['ready', 'breath', 'sound', 'imagine', 'relax', 'mind', 'close'];
 
-  // 미리듣기 문장 — 실제 활동 문구와 같은 결이어야 판단에 쓸모가 있다.
+  // 미리듣기 문장 — 고른 편이 있으면 그 편의 첫 문구를 쓴다.
+  // 실제로 들을 문구로 판단하게 되고, 신경망 목소리에서는 그 합성이 그대로
+  // 시작 준비가 된다(따로 맛보기 문장을 만들면 그 시간만큼 첫 문구가 늦어진다).
   var VOICE_SAMPLE = '숨을 천천히 들이쉬고, 길게 내쉬어요.';
+
+  function sampleText() {
+    return (S.session && S.session.steps[0].text) || VOICE_SAMPLE;
+  }
 
   // 목소리 고르기에서 신경망 목소리를 가리키는 값. 브라우저 목소리 이름과
   // 겹치지 않도록 사람이 쓰지 않는 모양으로 둔다.
@@ -247,7 +253,13 @@
      교사가 시간을 고르는 몇 초가 그대로 준비 시간이 된다. */
   function primeFirst() {
     if (!window.JjamSpeech || !JjamSpeech.usingNeural() || !S.session) return;
+    // 앞의 두 문구를 준비한다. 추론이 실시간의 두 배 남짓이라 첫 문구(약 5초
+    // 음성)에 11초쯤 걸리는데 준비 단계는 10초다 — 첫 문구가 아슬아슬하게
+    // 늦으면 그것만 건너뛰고 둘째부터 들린다. 그 둘째까지 여기서 미리 만들어
+    // 두면, 시작을 바로 눌러도 활동 대부분이 목소리와 함께 간다.
+    // 시간 모드와 무관하게 타임라인의 앞 두 칸은 steps[0], steps[1] 이다.
     JjamSpeech.prime(S.session.steps[0].text);
+    if (S.session.steps[1]) JjamSpeech.prime(S.session.steps[1].text);
   }
 
   function renderSetup() {
@@ -392,7 +404,7 @@
       neuralReady = true;
       chooseVoice(NEURAL_KEY);
       renderVoiceOption();
-      JjamSpeech.speak(VOICE_SAMPLE);
+      JjamSpeech.speak(sampleText());
     }).catch(function () {
       neuralBusy = false;
       note.classList.remove('busy');
@@ -686,14 +698,14 @@
       // 고르는 즉시 들려준다. 신경망은 만들어 두는 데 시간이 걸리므로
       // preview 가 아니라 speak 로 — 만들어지는 대로 알아서 난다.
       if (window.JjamSpeech) {
-        if (JjamSpeech.usingNeural()) JjamSpeech.speak(VOICE_SAMPLE);
+        if (JjamSpeech.usingNeural()) JjamSpeech.speak(sampleText());
         else JjamSpeech.preview(VOICE_SAMPLE);
       }
     });
     $('btn-voice-get').addEventListener('click', getNeuralVoice);
     $('btn-voice-try').addEventListener('click', function () {
       if (!window.JjamSpeech) return;
-      if (JjamSpeech.usingNeural()) JjamSpeech.speak(VOICE_SAMPLE);
+      if (JjamSpeech.usingNeural()) JjamSpeech.speak(sampleText());
       else JjamSpeech.preview(VOICE_SAMPLE);
     });
     $('btn-swap').addEventListener('click', function () {
