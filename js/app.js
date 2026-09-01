@@ -249,6 +249,21 @@
     renderVoiceOption();
   }
 
+  // 목소리 이름을 교사가 고를 수 있는 말로 바꾼다. 마이크로소프트 신경망 목소리는
+  // 'Microsoft SunHi Online (Natural) - Korean (Korea)' 처럼 길어 좁은 화면에서
+  // 잘리고, 어느 것이 자연스러운지도 이름만 봐서는 알 수 없다.
+  // 고르는 값은 원래 이름 그대로다 — 여기서 바꾸는 것은 보이는 글자뿐.
+  function voiceLabel(v) {
+    var t = v.name.replace(/^Microsoft\s+/i, '');
+    var natural = /neural|natural/i.test(t);
+    t = t.split(' - ')[0];                       // ' - Korean (Korea)' 꼬리를 자른다
+    t = t.replace(/\s*(Online|Desktop)?\s*\((Natural|Neural)\)\s*/i, '').trim();
+    var tags = [];
+    if (natural) tags.push('자연스러움');
+    if (!v.local) tags.push('인터넷 필요');
+    return t + (tags.length ? ' · ' + tags.join(' · ') : '');
+  }
+
   function renderVoiceOption() {
     var ok = !!(window.JjamSpeech && JjamSpeech.supported());
     $('voice-group').hidden = !ok;
@@ -275,11 +290,11 @@
     if (many) {
       sel.innerHTML = voices.map(function (v) {
         return '<option value="' + esc(v.name) + '"' + (v.current ? ' selected' : '') + '>' +
-          esc(v.name) + (v.local ? '' : ' (인터넷 필요)') + '</option>';
+          esc(voiceLabel(v)) + '</option>';
       }).join('');
     } else {
       // 고를 것이 없으면 드롭다운 대신 이름만 — 눌러도 아무 일이 없는 UI 는 두지 않는다.
-      name.textContent = voices[0].name + (voices[0].local ? '' : ' (인터넷 필요)');
+      name.textContent = voiceLabel(voices[0]);
     }
   }
 
