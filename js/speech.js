@@ -22,6 +22,8 @@ var JjamSpeech = (function () {
   var RESUME_CHECK_MS = 240;
 
   var voice = null;
+  var chosenName = '';    // 교사가 고른 목소리 이름 (없으면 순위 1등)
+  var fellBack = false;   // 네트워크 목소리 실패로 기기 목소리로 되돌렸는가
   var enabled = true;
   var muted = false;
   var warmed = false;
@@ -40,18 +42,46 @@ var JjamSpeech = (function () {
 
   // 한국어 목소리만 쓴다 — 영어 목소리에 한글을 넘기면 글자를 하나씩
   // 영어식으로 읽어 알아들을 수 없는 소리가 난다. 없으면 없는 대로 둔다.
-  function pickVoice() {
+  function koreanVoices() {
     var s = synth();
-    if (!s) return null;
+    if (!s) return [];
     var list;
-    try { list = s.getVoices() || []; } catch (e) { return null; }
+    try { list = s.getVoices() || []; } catch (e) { return []; }
+    return list.filter(function (v) { return /^ko\b|^ko[-_]/i.test(v.lang || ''); });
+  }
 
-    var ko = list.filter(function (v) { return /^ko\b|^ko[-_]/i.test(v.lang || ''); });
-    if (!ko.length) return null;
-    // 기기에 설치된 목소리를 먼저 고른다 — 네트워크 목소리는 오프라인 교실에서
-    // 소리가 나지 않는다. 이 앱은 오프라인 동작을 전제로 한다(PRD 10절).
-    for (var i = 0; i < ko.length; i++) if (ko[i].localService) return ko[i];
-    return ko[0];
+  // 자연스러움 순위 — 이름으로 신경망 계열을 알아본다.
+  // 기기에 설치된 목소리를 먼저 고르면 오프라인에는 안전하지만, 윈도우의
+  // 기본 한국어(혜미)는 십수 년 된 연결합성이라 또렷해도 기계처럼 들린다.
+  // 같은 기기에 구글·신경망 목소리가 함께 있으면 그쪽이 사람에 훨씬 가깝다.
+  // 그래서 자연스러운 쪽을 기본으로 두고, 네트워크 목소리가 실패하면
+  // (오프라인 교실) 아래 speak 의 폴백이 기기 목소리로 되돌린다.
+  var VOICE_RANK = [
+    /google/i,                       // Google 한국의 — 신경망
+    /neural|natural|sunhi|injoon/i,  // 마이크로소프트 신경망 계열
+    /yuna|sora|siri/i                // 애플
+  ];
+
+  function scoreVoice(v) {
+    for (var i = 0; i < VOICE_RANK.length; i++) {
+      if (VOICE_RANK[i].test(v.name || '')) return i;
+    }
+    // 알 수 없는 목소리는 기기에 설치된 쪽을 먼저 — 오프라인에서 확실히 난다.
+    return VOICE_RANK.length + (v.localService ? 0 : 1);
+  }
+
+  function ranked() {
+    return koreanVoices().slice().sort(function (a, b) { return scoreVoice(a) - scoreVoice(b); });
+  }
+
+  function pickVoice() {
+    var list = ranked();
+    if (!list.length) return null;
+    // 교사가 고른 목소리가 아직 있으면 그것을 지킨다.
+    if (chosenName) {
+      for (var i = 0; i < list.length; i++) if (list[i].name === chosenName) return list[i];
+    }
+    return list[0];
   }
 
   function refresh() {
@@ -75,9 +105,20 @@ var JjamSpeech = (function () {
     u.rate = RATE;
     u.pitch = PITCH;
     u.volume = 1;
-    u.onstart = function () { notify(true); };
+    u.onstart = function () { fellBack = false; notify(true); };
     u.onend = function () { notify(false); };
-    u.onerror = function () { notify(false); };
+    // 네트워크 목소리는 오프라인 교실에서 소리 없이 실패한다. 그때 기기에
+    // 설치된 목소리로 한 번 되돌려 다시 읽는다 — 자연스러움보다 들리는 것이 먼저다.
+    u.onerror = function () {
+      notify(false);
+      if (fellBack || voice.localService) return;
+      var local = null, list = koreanVoices();
+      for (var i = 0; i < list.length; i++) if (list[i].localService) { local = list[i]; break; }
+      if (!local) return;
+      fellBack = true;
+      voice = local;
+      utter(text);
+    };
     try { s.speak(u); } catch (e) { notify(false); }
   }
 
@@ -156,6 +197,32 @@ var JjamSpeech = (function () {
 
   function supported() { return !!synth() && !!voice; }
 
+  /* 기기에 있는 한국어 목소리 목록 — 자연스러운 순으로. 설정 화면이
+     두 개 이상일 때만 고르기를 띄운다(하나뿐이면 고를 것이 없다). */
+  function list() {
+    return ranked().map(function (v) {
+      return { name: v.name, local: !!v.localService, current: v === voice };
+    });
+  }
+
+  function setVoiceByName(name) {
+    chosenName = name || '';
+    fellBack = false;
+    refresh();
+  }
+
+  function currentName() { return voice ? voice.name : ''; }
+
+  /* 미리듣기 — 고른 목소리를 활동 문구 한 줄로 들려준다.
+     설정 화면에서 부르므로 사용자 제스처 안이다(사파리 대응). */
+  function preview(text) {
+    var s = synth();
+    if (!s || !voice || muted) return;
+    hardCancel();
+    lastText = text;
+    utter(text);
+  }
+
   // 목소리 목록은 비동기로 채워진다 — 첫 조회가 빈 배열인 브라우저가 많다.
   (function listen() {
     var s = synth();
@@ -179,6 +246,10 @@ var JjamSpeech = (function () {
     resume: resume,
     setEnabled: setEnabled,
     setMuted: setMuted,
+    list: list,
+    setVoiceByName: setVoiceByName,
+    currentName: currentName,
+    preview: preview,
     setOnSpeakChange: function (fn) { onSpeakChange = fn; },
     setOnReady: function (fn) { onReady = fn; }
   };

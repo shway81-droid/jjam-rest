@@ -22,6 +22,9 @@
 
   var PHASES = ['ready', 'breath', 'sound', 'imagine', 'relax', 'mind', 'close'];
 
+  // 미리듣기 문장 — 실제 활동 문구와 같은 결이어야 판단에 쓸모가 있다.
+  var VOICE_SAMPLE = '숨을 천천히 들이쉬고, 길게 내쉬어요.';
+
   var LS_KEY = 'jjam-rest-v1';
   var RECENT_MAX = 8;
   var TICK_MS = 250;
@@ -89,9 +92,10 @@
       // 목소리는 기본으로 켠다 — 눈을 감고 하는 활동이라 문구가 들려야 한다.
       // 끈 기록이 명시적으로 남아 있을 때만 끈다.
       s.voice = (s.voice !== false);
+      s.voiceName = typeof s.voiceName === 'string' ? s.voiceName : '';
       return s;
     } catch (e) {
-      return { recent: [], muted: false, voice: true };
+      return { recent: [], muted: false, voice: true, voiceName: '' };
     }
   }
   function saveStore() {
@@ -254,6 +258,18 @@
       return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-v="' + o[0] + '">' +
         o[1] + '</button>';
     }).join('');
+
+    // 기기에 한국어 목소리가 둘 이상이면 고를 수 있게 한다. 윈도우에는 보통
+    // 오래된 기본 목소리와 자연스러운 신경망 목소리가 함께 있어, 어느 쪽으로
+    // 들리는지가 이 활동의 인상을 좌우한다.
+    var voices = JjamSpeech.list();
+    var pickBox = $('voice-pick');
+    pickBox.hidden = !store.voice || voices.length < 2;
+    if (pickBox.hidden) return;
+    $('voice-select').innerHTML = voices.map(function (v) {
+      return '<option value="' + esc(v.name) + '"' + (v.current ? ' selected' : '') + '>' +
+        esc(v.name) + (v.local ? '' : ' (인터넷 필요)') + '</option>';
+    }).join('');
   }
 
   // ── 화면: 진행 ──
@@ -281,6 +297,7 @@
     if (window.JjamSpeech) {
       JjamSpeech.setEnabled(store.voice);
       JjamSpeech.setMuted(store.muted);
+      if (store.voiceName) JjamSpeech.setVoiceByName(store.voiceName);
       JjamSpeech.ensure();
     }
 
@@ -518,11 +535,22 @@
       var btn = e.target.closest('.opt-btn');
       if (btn) setVoice(btn.getAttribute('data-v') === '1');
     });
+    $('voice-select').addEventListener('change', function (e) {
+      store.voiceName = e.target.value;
+      saveStore();
+      if (window.JjamSpeech) {
+        JjamSpeech.setVoiceByName(store.voiceName);
+        JjamSpeech.preview(VOICE_SAMPLE);   // 고르는 즉시 들려준다
+      }
+    });
+    $('btn-voice-try').addEventListener('click', function () {
+      if (window.JjamSpeech) JjamSpeech.preview(VOICE_SAMPLE);
+    });
     $('btn-swap').addEventListener('click', function () {
       var next = recommend(S.type, S.session.id);
       if (next) { S.session = next; renderSetup(); }
     });
-    $('btn-setup-back').addEventListener('click', goHome);
+    $('btn-setup-back').addEventListener('click', goHome);   // goHome 이 미리듣기도 끊는다
     $('btn-start').addEventListener('click', start);
     $('btn-pause').addEventListener('click', togglePause);
     $('btn-skip').addEventListener('click', skipStep);
@@ -546,6 +574,7 @@
     if (window.JjamSpeech) {
       JjamSpeech.setEnabled(store.voice);
       JjamSpeech.setMuted(store.muted);
+      if (store.voiceName) JjamSpeech.setVoiceByName(store.voiceName);
       // 말하는 동안 배경음을 뒤로 물린다 — 교실 스피커에서 빗소리에
       // 목소리가 묻히면 눈을 감은 학생에게는 아무것도 전해지지 않는다.
       JjamSpeech.setOnSpeakChange(function (on) {

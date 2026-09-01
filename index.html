@@ -76,6 +76,12 @@
         <div class="setup-group" id="voice-group" hidden>
           <h2>목소리</h2>
           <div class="option-row" id="opt-voice" role="radiogroup" aria-label="문구 읽어주기 선택"></div>
+          <!-- 목소리 고르기 — 기기에 한국어 목소리가 둘 이상일 때만 나타난다.
+               하나뿐인 기기(대부분의 안드로이드)에서는 고를 것이 없다. -->
+          <div class="voice-pick" id="voice-pick" hidden>
+            <select id="voice-select" aria-label="목소리 고르기"></select>
+            <button class="btn btn-ghost btn-sm" id="btn-voice-try" type="button">미리 들어보기</button>
+          </div>
         </div>
       </div>
 

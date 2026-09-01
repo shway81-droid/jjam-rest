@@ -220,6 +220,14 @@ button { font-family: inherit; cursor: pointer; }
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .btn-big { font-size: 1.25rem; padding: 0.95rem 2.2rem; }
+.voice-pick { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.7rem; }
+.voice-pick select {
+  font: inherit; font-size: 0.95rem; color: var(--ink);
+  background: var(--card); border: 2px solid var(--outline-variant);
+  border-radius: 0.6rem; padding: 0.45rem 0.6rem; max-width: 100%;
+}
+.voice-pick select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
 .btn-sm { font-size: 0.9rem; padding: 0.45rem 0.9rem; }
 .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent-deep); }
 .btn-primary:hover { background: var(--accent-deep); }
