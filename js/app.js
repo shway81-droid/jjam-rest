@@ -86,9 +86,12 @@
       var s = raw ? JSON.parse(raw) : {};
       s.recent = s.recent || [];
       s.muted = !!s.muted;
+      // 목소리는 기본으로 켠다 — 눈을 감고 하는 활동이라 문구가 들려야 한다.
+      // 끈 기록이 명시적으로 남아 있을 때만 끈다.
+      s.voice = (s.voice !== false);
       return s;
     } catch (e) {
-      return { recent: [], muted: false };
+      return { recent: [], muted: false, voice: true };
     }
   }
   function saveStore() {
@@ -238,6 +241,19 @@
       return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-d="' + d + '">' +
         d + '분</button>';
     }).join('');
+
+    renderVoiceOption();
+  }
+
+  function renderVoiceOption() {
+    var ok = !!(window.JjamSpeech && JjamSpeech.supported());
+    $('voice-group').hidden = !ok;
+    if (!ok) return;
+    $('opt-voice').innerHTML = [[1, '읽어줘요'], [0, '글자만']].map(function (o) {
+      var on = (!!o[0] === !!store.voice);
+      return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-v="' + o[0] + '">' +
+        o[1] + '</button>';
+    }).join('');
   }
 
   // ── 화면: 진행 ──
@@ -260,6 +276,12 @@
     if (window.JjamSound) {
       JjamSound.ensure();
       JjamSound.setMuted(store.muted);
+    }
+    // 음성합성도 같은 이유로 여기서 깨운다 (사파리는 제스처 밖 첫 발화를 버린다)
+    if (window.JjamSpeech) {
+      JjamSpeech.setEnabled(store.voice);
+      JjamSpeech.setMuted(store.muted);
+      JjamSpeech.ensure();
     }
 
     $('play-anim').innerHTML = '';
@@ -320,6 +342,13 @@
     }, LABEL_FADE_MS);
   }
 
+  // ── 문구 읽어주기 ──
+  // 글자가 화면에 실제로 나타나는 순간에 읽는다(크로스페이드 뒤). 눈을 감은
+  // 학생에게는 목소리가, 소리를 끈 교실에는 글자가 같은 것을 전한다.
+  function speakText(text) {
+    if (window.JjamSpeech) JjamSpeech.speak(text);
+  }
+
   function applyStep(idx, immediate) {
     S.stepIdx = idx;
     var st = S.timeline[idx];
@@ -328,6 +357,7 @@
     function put() {
       textEl.textContent = st.text;
       textEl.classList.remove('fading');
+      speakText(st.text);
       // 같은 애니메이션이 이어지면 그대로 둔다 — 호흡 주기가 끊기지 않게.
       if (st.anim !== S.curAnim) {
         $('play-anim').innerHTML = ANIM_HTML[st.anim] || '';
@@ -360,6 +390,7 @@
       S.paused = false;
       $('screen-play').classList.remove('paused');
       if (window.JjamSound) JjamSound.resume();
+      if (window.JjamSpeech) JjamSpeech.resume();
     } else {
       // 크로스페이드 도중에 멈추면 글자가 반쯤 흐려진 채 굳거나, 벽시계
       // setTimeout 이 살아남아 정지 중에 문구가 저절로 넘어간다.
@@ -369,6 +400,9 @@
       S.paused = true;
       $('screen-play').classList.add('paused');
       if (window.JjamSound) JjamSound.suspend();
+      // flushPending 뒤에 멈춘다 — 방금 확정된 문구까지 "읽던 중"으로 잡아야
+      // 재개할 때 그 문장이 되살아난다.
+      if (window.JjamSpeech) JjamSpeech.pause();
     }
     setPauseBtn(S.paused);
   }
@@ -388,6 +422,9 @@
     // 크로스페이드 예약이 살아 있으면 먼저 끝낸다 — 그러지 않으면 넘긴 뒤에
     // 옛 문구가 뒤늦게 화면을 덮어쓴다.
     flushPending();
+    // 그 flushPending 이 방금 확정한 문구까지 끊는다 — 넘기려던 문장을
+    // 반쯤 읽다 마는 소리가 남지 않게.
+    if (window.JjamSpeech) JjamSpeech.cancel();
     var jump = remain + 0.05;   // 경계를 확실히 넘긴다(부동소수 여유)
     S.startAt -= jump * 1000;
     // 무대의 CSS 애니메이션은 벽시계로 계속 돌고 있다. 라벨 위상 기준점을 같은
@@ -413,11 +450,15 @@
     ).slice(0, RECENT_MAX);
     saveStore();
     $('done-text').textContent = S.session.closing;
+    speakText(S.session.closing);
     show('screen-done');
     renderHome();   // 최근 사용 갱신
   }
 
   function abandon() {
+    // 목소리는 진행 화면 밖(마무리 화면의 인사말)에서도 남아 있을 수 있어
+    // 화면과 무관하게 끊는다 — 홈으로 나온 뒤 혼자 말하는 일이 없게.
+    if (window.JjamSpeech) JjamSpeech.cancel();
     if ($('screen-play').hidden === false) {
       stopTimer();
       if (window.JjamSound) JjamSound.stop(0.3);
@@ -439,6 +480,19 @@
     saveStore();
     renderMute();
     if (window.JjamSound) JjamSound.setMuted(store.muted);
+    // 음소거는 소리 전체를 끈다 — 배경음만 꺼지고 목소리가 계속 나오면
+    // 방송 중에 급히 누른 교사에게는 꺼진 것이 아니다.
+    if (window.JjamSpeech) JjamSpeech.setMuted(store.muted);
+  }
+
+  // ── 목소리 켜고 끄기 (설정 화면) ──
+  // 상단바 음소거와 층이 다르다: 음소거는 소리 전체, 이쪽은 목소리만.
+  // 배경음은 그대로 두고 문구만 조용히 읽히고 싶지 않을 때 쓴다.
+  function setVoice(on) {
+    store.voice = !!on;
+    saveStore();
+    if (window.JjamSpeech) JjamSpeech.setEnabled(store.voice);
+    renderSetup();
   }
 
   // ── 이벤트 ──
@@ -460,6 +514,10 @@
       S.duration = Number(btn.getAttribute('data-d'));
       renderSetup();
     });
+    $('opt-voice').addEventListener('click', function (e) {
+      var btn = e.target.closest('.opt-btn');
+      if (btn) setVoice(btn.getAttribute('data-v') === '1');
+    });
     $('btn-swap').addEventListener('click', function () {
       var next = recommend(S.type, S.session.id);
       if (next) { S.session = next; renderSetup(); }
@@ -469,6 +527,8 @@
     $('btn-pause').addEventListener('click', togglePause);
     $('btn-skip').addEventListener('click', skipStep);
     $('btn-again').addEventListener('click', function () {
+      // 마무리 인사말을 아직 읽고 있을 수 있다 — 설정 화면으로 옮기며 끊는다.
+      if (window.JjamSpeech) JjamSpeech.cancel();
       S.session = recommend(S.type, S.session.id) || S.session;
       renderSetup();
       show('screen-setup');
@@ -482,6 +542,22 @@
   function init() {
     renderMute();
     bind();
+
+    if (window.JjamSpeech) {
+      JjamSpeech.setEnabled(store.voice);
+      JjamSpeech.setMuted(store.muted);
+      // 말하는 동안 배경음을 뒤로 물린다 — 교실 스피커에서 빗소리에
+      // 목소리가 묻히면 눈을 감은 학생에게는 아무것도 전해지지 않는다.
+      JjamSpeech.setOnSpeakChange(function (on) {
+        if (window.JjamSound) JjamSound.duck(on);
+      });
+      // 목소리 목록은 뒤늦게 도착하는 브라우저가 많다. 설정 화면을 이미
+      // 보고 있었다면 그때 선택지를 그려 준다.
+      JjamSpeech.setOnReady(function () {
+        if ($('screen-setup').hidden === false) renderVoiceOption();
+      });
+    }
+
     fetch('data/sessions.json')
       .then(function (r) { return r.json(); })
       .then(function (data) {

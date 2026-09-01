@@ -1,7 +1,9 @@
 /* 짬짬이 쉼 — 오프라인 캐시 (FR-08) */
 // 이름을 올리면 activate 가 옛 캐시를 통째로 지운다. v1 에는 오류 응답이
 // 섞여 들어갔을 수 있어(아래 fetch 주석) 그것을 버리기 위해 v2 로 올렸다.
-var CACHE = 'jjam-rest-v2';
+// v3: 자산 목록에 js/speech.js 가 늘었다 — 목록이 바뀌면 이름도 올려야
+// 옛 캐시를 쥔 기기가 새 파일 없이 index.html 만 갱신하는 일이 없다.
+var CACHE = 'jjam-rest-v3';
 
 var ASSETS = [
   './',
@@ -9,6 +11,7 @@ var ASSETS = [
   './css/style.css',
   './js/app.js',
   './js/sound.js',
+  './js/speech.js',
   './shared/jjam-switcher.js',
   './data/sessions.json',
   './favicon.svg',

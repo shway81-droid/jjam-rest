@@ -8,9 +8,16 @@ var JjamSound = (function () {
 
   var ctx = null;
   var master = null;      // 음소거는 여기서 한 번에 (차임 포함)
+  // 배경음만 지나는 마디. 목소리가 나오는 동안 여기만 낮춘다 —
+  // 음소거(master)와 층을 나눠 두지 않으면 둘이 같은 gain 을 서로 덮어쓴다.
+  var bus = null;
   var noiseBuf = null;
   var current = null;     // { key, gain, nodes }
   var muted = false;
+
+  // 목소리가 나올 때의 배경음 크기. 0 으로 줄이지 않는다 — 빗소리가 끊겼다
+  // 돌아오면 그 자체가 자극이 된다. 뒤로 물러나되 계속 들리는 정도.
+  var DUCK = 0.35;
 
   function ensure() {
     if (!ctx) {
@@ -20,6 +27,9 @@ var JjamSound = (function () {
       master = ctx.createGain();
       master.gain.value = muted ? 0 : 1;
       master.connect(ctx.destination);
+      bus = ctx.createGain();
+      bus.gain.value = 1;
+      bus.connect(master);
     }
     if (ctx.state === 'suspended') ctx.resume();
     return true;
@@ -124,7 +134,9 @@ var JjamSound = (function () {
     stop();
     var p = PRESETS[key]();
     p.key = key;
-    p.gain.connect(master);
+    // 배경음은 bus 를 거친다(차임은 master 로 직행) — 목소리에 밀려 마무리
+    // 차임까지 작아지면 활동이 끝났다는 신호가 흐려진다.
+    p.gain.connect(bus);
     var t = ctx.currentTime;
     p.gain.gain.setValueAtTime(0.0001, t);
     p.gain.gain.linearRampToValueAtTime(p.level, t + 1.6);   // 느린 페이드 인
@@ -156,6 +168,13 @@ var JjamSound = (function () {
     if (master) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.05);
   }
 
+  /* 목소리가 문구를 읽는 동안 배경음을 뒤로 물린다.
+     계단처럼 뚝 떨어지면 그것이 자극이 되므로 setTargetAtTime 으로 부드럽게. */
+  function duck(on) {
+    if (!bus || !ctx) return;
+    bus.gain.setTargetAtTime(on ? DUCK : 1, ctx.currentTime, 0.12);
+  }
+
   return { ensure: ensure, play: play, stop: stop, chime: chime,
-           suspend: suspend, resume: resume, setMuted: setMuted };
+           suspend: suspend, resume: resume, setMuted: setMuted, duck: duck };
 })();

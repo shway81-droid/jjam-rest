@@ -70,6 +70,13 @@
           <h2>시간</h2>
           <div class="option-row" id="opt-duration" role="radiogroup" aria-label="시간 선택"></div>
         </div>
+
+        <!-- 목소리 — 기기에 한국어 목소리가 있을 때만 나타난다.
+             없는 기기에서 보여 주면 눌러도 아무 일이 없다 (js/app.js renderSetup). -->
+        <div class="setup-group" id="voice-group" hidden>
+          <h2>목소리</h2>
+          <div class="option-row" id="opt-voice" role="radiogroup" aria-label="문구 읽어주기 선택"></div>
+        </div>
       </div>
 
       <div class="setup-actions">
@@ -106,6 +113,7 @@
   </main>
 
   <script src="js/sound.js"></script>
+  <script src="js/speech.js"></script>
   <script src="js/app.js"></script>
   <script src="shared/jjam-switcher.js" defer></script>
 </body>
