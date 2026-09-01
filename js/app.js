@@ -22,6 +22,19 @@
 
   var PHASES = ['ready', 'breath', 'sound', 'imagine', 'relax', 'mind', 'close'];
 
+  // 미리듣기 문장 — 고른 편이 있으면 그 편의 첫 문구를 쓴다.
+  // 실제로 들을 문구로 판단하게 되고, 신경망 목소리에서는 그 합성이 그대로
+  // 시작 준비가 된다(따로 맛보기 문장을 만들면 그 시간만큼 첫 문구가 늦어진다).
+  var VOICE_SAMPLE = '숨을 천천히 들이쉬고, 길게 내쉬어요.';
+
+  function sampleText() {
+    return (S.session && S.session.steps[0].text) || VOICE_SAMPLE;
+  }
+
+  // 목소리 고르기에서 신경망 목소리를 가리키는 값. 브라우저 목소리 이름과
+  // 겹치지 않도록 사람이 쓰지 않는 모양으로 둔다.
+  var NEURAL_KEY = '__jjam__';
+
   var LS_KEY = 'jjam-rest-v1';
   var RECENT_MAX = 8;
   var TICK_MS = 250;
@@ -58,6 +71,8 @@
   var sessions = [];
   var byId = {};
   var store = loadStore();
+  var neuralReady = false;    // 받아 둔 신경망 목소리가 있는가
+  var neuralBusy = false;     // 지금 받는 중인가
 
   var S = {
     type: null,
@@ -86,9 +101,13 @@
       var s = raw ? JSON.parse(raw) : {};
       s.recent = s.recent || [];
       s.muted = !!s.muted;
+      // 목소리는 기본으로 켠다 — 눈을 감고 하는 활동이라 문구가 들려야 한다.
+      // 끈 기록이 명시적으로 남아 있을 때만 끈다.
+      s.voice = (s.voice !== false);
+      s.voiceName = typeof s.voiceName === 'string' ? s.voiceName : '';
       return s;
     } catch (e) {
-      return { recent: [], muted: false };
+      return { recent: [], muted: false, voice: true, voiceName: '' };
     }
   }
   function saveStore() {
@@ -228,6 +247,21 @@
     show('screen-setup');
   }
 
+  /* 신경망 목소리는 합성이 실시간의 두 배쯤 걸린다. 시작을 누른 뒤에
+     만들기 시작하면 첫 문구가 한참 뒤에 나온다 — 그래서 편이 정해지는
+     순간(설정 화면)부터 첫 단계 문구를 미리 만들어 둔다.
+     교사가 시간을 고르는 몇 초가 그대로 준비 시간이 된다. */
+  function primeFirst() {
+    if (!window.JjamSpeech || !JjamSpeech.usingNeural() || !S.session) return;
+    // 앞의 두 문구를 준비한다. 추론이 실시간의 두 배 남짓이라 첫 문구(약 5초
+    // 음성)에 11초쯤 걸리는데 준비 단계는 10초다 — 첫 문구가 아슬아슬하게
+    // 늦으면 그것만 건너뛰고 둘째부터 들린다. 그 둘째까지 여기서 미리 만들어
+    // 두면, 시작을 바로 눌러도 활동 대부분이 목소리와 함께 간다.
+    // 시간 모드와 무관하게 타임라인의 앞 두 칸은 steps[0], steps[1] 이다.
+    JjamSpeech.prime(S.session.steps[0].text);
+    if (S.session.steps[1]) JjamSpeech.prime(S.session.steps[1].text);
+  }
+
   function renderSetup() {
     $('picked-title').textContent = S.session.title;
     // 이 편이 지원하는 시간만 그린다 — 화면에 없는 시간은 아무도 고를 수 없어야 한다.
@@ -238,6 +272,145 @@
       return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-d="' + d + '">' +
         d + '분</button>';
     }).join('');
+
+    renderVoiceOption();
+  }
+
+  // 목소리 이름을 교사가 고를 수 있는 말로 바꾼다. 마이크로소프트 신경망 목소리는
+  // 'Microsoft SunHi Online (Natural) - Korean (Korea)' 처럼 길어 좁은 화면에서
+  // 잘리고, 어느 것이 자연스러운지도 이름만 봐서는 알 수 없다.
+  // 고르는 값은 원래 이름 그대로다 — 여기서 바꾸는 것은 보이는 글자뿐.
+  function voiceLabel(v) {
+    var t = v.name.replace(/^Microsoft\s+/i, '');
+    var natural = /neural|natural/i.test(t);
+    t = t.split(' - ')[0];                       // ' - Korean (Korea)' 꼬리를 자른다
+    t = t.replace(/\s*(Online|Desktop)?\s*\((Natural|Neural)\)\s*/i, '').trim();
+    var tags = [];
+    if (natural) tags.push('자연스러움');
+    if (!v.local) tags.push('인터넷 필요');
+    return t + (tags.length ? ' · ' + tags.join(' · ') : '');
+  }
+
+  function renderVoiceOption() {
+    var browserVoices = JjamSpeech.list();
+    // 받아 둔 목소리가 있거나, 기기에 브라우저 목소리가 있거나,
+    // 아직 없더라도 받을 수 있으면 항목을 보인다. 마지막 경우를 빼먹으면
+    // 한국어 목소리가 아예 없는 기기 — 이 기능이 가장 필요한 기기 — 에서
+    // 받기 단추에 닿을 길이 없어진다.
+    var canGet = !!window.JjamNeural;
+    var ok = neuralReady || browserVoices.length > 0 || canGet;
+    $('voice-group').hidden = !ok;
+    if (!ok) return;
+
+    $('opt-voice').innerHTML = [[1, '읽어줘요'], [0, '글자만']].map(function (o) {
+      var on = (!!o[0] === !!store.voice);
+      return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-v="' + o[0] + '">' +
+        o[1] + '</button>';
+    }).join('');
+
+    // 고를 수 있는 목소리 = 받아 둔 신경망 목소리 + 기기의 브라우저 목소리.
+    // 신경망을 앞에 둔다 — 어느 브라우저에서나 같은 소리라 기준이 되는 쪽이다.
+    var opts = [];
+    if (neuralReady) opts.push({ key: NEURAL_KEY, label: '짬짬이 목소리 · 어디서나 같아요' });
+    browserVoices.forEach(function (v) { opts.push({ key: v.name, label: voiceLabel(v) }); });
+
+    var pickBox = $('voice-pick');
+    pickBox.hidden = !store.voice || !opts.length;
+    if (!pickBox.hidden) {
+      var cur = currentVoiceKey(browserVoices);
+      var sel = $('voice-select');
+      var name = $('voice-name');
+      var many = opts.length > 1;
+      sel.hidden = !many;
+      name.hidden = many;
+      if (many) {
+        sel.innerHTML = opts.map(function (o) {
+          return '<option value="' + esc(o.key) + '"' + (o.key === cur ? ' selected' : '') + '>' +
+            esc(o.label) + '</option>';
+        }).join('');
+      } else {
+        name.textContent = opts[0].label;
+      }
+
+      // 자연스러운 목소리가 하나도 없을 때만 어디서 얻는지 알려 준다.
+      // 마이크로소프트 신경망 목소리는 Edge 에만 노출된다 — 같은 컴퓨터라도
+      // 크롬에서는 목록에 아예 나타나지 않는다. 짬짬이 목소리를 받았다면
+      // 브라우저를 바꿀 이유가 없으므로 그때도 띄우지 않는다.
+      var hasNatural = neuralReady || browserVoices.some(function (v) {
+        return /neural|natural/i.test(v.name);
+      });
+      var tip = $('voice-tip');
+      tip.hidden = hasNatural;
+      if (!hasNatural) tip.textContent = 'Edge 로 열면 더 자연스러운 목소리를 고를 수 있어요.';
+    }
+
+    renderVoiceGet();
+  }
+
+  /* 아직 안 받았을 때만 받기 단추를 보인다. 받고 나면 위 목록의 한 항목이 된다. */
+  function renderVoiceGet() {
+    var box = $('voice-get');
+    var can = !!window.JjamNeural && !neuralReady && store.voice;
+    box.hidden = !can;
+    if (!can) return;
+    var note = $('voice-get-note');
+    if (!neuralBusy) {
+      note.classList.remove('busy');
+      note.textContent = '한 번 받으면 어느 브라우저에서나 같은 목소리로 읽어요 · ' +
+        Math.round(JjamNeural.TOTAL_BYTES / 1048576) + 'MB';
+    }
+    $('btn-voice-get').disabled = neuralBusy;
+  }
+
+  /* 지금 어떤 목소리가 선택돼 있는가 — 드롭다운의 값과 같은 형식으로. */
+  function currentVoiceKey(browserVoices) {
+    if (neuralReady && store.voiceName === NEURAL_KEY) return NEURAL_KEY;
+    for (var i = 0; i < browserVoices.length; i++) {
+      if (browserVoices[i].current) return browserVoices[i].name;
+    }
+    return neuralReady ? NEURAL_KEY : (browserVoices[0] ? browserVoices[0].name : '');
+  }
+
+  /* 목소리를 고른다. 신경망과 브라우저 사이를 오갈 때 엔진도 함께 바꾼다. */
+  function chooseVoice(key) {
+    store.voiceName = key;
+    saveStore();
+    if (!window.JjamSpeech) return;
+    if (key === NEURAL_KEY) {
+      JjamSpeech.setNeural(true);
+    } else {
+      JjamSpeech.setNeural(false);
+      JjamSpeech.setVoiceByName(key);
+    }
+  }
+
+  /* 신경망 목소리 내려받기. 다 받으면 곧바로 그 목소리로 바꾸고 한 문장 들려준다 —
+     47MB 를 받고도 무엇이 달라졌는지 모르면 받은 보람이 없다. */
+  function getNeuralVoice() {
+    if (neuralBusy || !window.JjamNeural) return;
+    neuralBusy = true;
+    var note = $('voice-get-note');
+    note.classList.add('busy');
+    note.textContent = '받는 중… 0%';
+    $('btn-voice-get').disabled = true;
+
+    JjamNeural.install(function (done, total) {
+      note.textContent = '받는 중… ' + Math.min(99, Math.floor(done / total * 100)) + '%';
+    }).then(function () {
+      note.textContent = '준비 중…';
+      return JjamNeural.load();
+    }).then(function () {
+      neuralBusy = false;
+      neuralReady = true;
+      chooseVoice(NEURAL_KEY);
+      renderVoiceOption();
+      JjamSpeech.speak(sampleText());
+    }).catch(function () {
+      neuralBusy = false;
+      note.classList.remove('busy');
+      note.textContent = '받지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.';
+      $('btn-voice-get').disabled = false;
+    });
   }
 
   // ── 화면: 진행 ──
@@ -260,6 +433,17 @@
     if (window.JjamSound) {
       JjamSound.ensure();
       JjamSound.setMuted(store.muted);
+    }
+    // 음성합성도 같은 이유로 여기서 깨운다 (사파리는 제스처 밖 첫 발화를 버린다)
+    if (window.JjamSpeech) {
+      JjamSpeech.setEnabled(store.voice);
+      JjamSpeech.setMuted(store.muted);
+      JjamSpeech.ensure();
+      // 앞의 두 단계를 미리 만들어 둔다. 첫 단계는 설정 화면에서 이미
+      // 시작됐을 가능성이 높고(primeFirst), 두 번째는 첫 단계가 흐르는
+      // 10초 동안 만들어진다.
+      primeAhead(0);
+      primeAhead(1);
     }
 
     $('play-anim').innerHTML = '';
@@ -320,6 +504,22 @@
     }, LABEL_FADE_MS);
   }
 
+  // ── 문구 읽어주기 ──
+  // 글자가 화면에 실제로 나타나는 순간에 읽는다(크로스페이드 뒤). 눈을 감은
+  // 학생에게는 목소리가, 소리를 끈 교실에는 글자가 같은 것을 전한다.
+  function speakText(text) {
+    if (window.JjamSpeech) JjamSpeech.speak(text);
+  }
+
+  /* 지금 읽는 동안 다음 문구를 만들어 둔다 — 단계가 10~64초라 넉넉하다.
+     마지막 단계에 이르면 마무리 인사말을 준비한다. */
+  function primeAhead(idx) {
+    if (!window.JjamSpeech || !JjamSpeech.usingNeural()) return;
+    var st = S.timeline[idx];
+    if (st) JjamSpeech.prime(st.text);
+    else if (S.session) JjamSpeech.prime(S.session.closing);
+  }
+
   function applyStep(idx, immediate) {
     S.stepIdx = idx;
     var st = S.timeline[idx];
@@ -328,6 +528,7 @@
     function put() {
       textEl.textContent = st.text;
       textEl.classList.remove('fading');
+      speakText(st.text);
       // 같은 애니메이션이 이어지면 그대로 둔다 — 호흡 주기가 끊기지 않게.
       if (st.anim !== S.curAnim) {
         $('play-anim').innerHTML = ANIM_HTML[st.anim] || '';
@@ -343,6 +544,8 @@
       if (st.sound) JjamSound.play(S.session.sound);
       else JjamSound.stop();
     }
+
+    primeAhead(idx + 1);
 
     if (immediate) { cancel('fadeTimer'); put(); return; }
     textEl.classList.add('fading');
@@ -360,6 +563,7 @@
       S.paused = false;
       $('screen-play').classList.remove('paused');
       if (window.JjamSound) JjamSound.resume();
+      if (window.JjamSpeech) JjamSpeech.resume();
     } else {
       // 크로스페이드 도중에 멈추면 글자가 반쯤 흐려진 채 굳거나, 벽시계
       // setTimeout 이 살아남아 정지 중에 문구가 저절로 넘어간다.
@@ -369,6 +573,9 @@
       S.paused = true;
       $('screen-play').classList.add('paused');
       if (window.JjamSound) JjamSound.suspend();
+      // flushPending 뒤에 멈춘다 — 방금 확정된 문구까지 "읽던 중"으로 잡아야
+      // 재개할 때 그 문장이 되살아난다.
+      if (window.JjamSpeech) JjamSpeech.pause();
     }
     setPauseBtn(S.paused);
   }
@@ -388,6 +595,9 @@
     // 크로스페이드 예약이 살아 있으면 먼저 끝낸다 — 그러지 않으면 넘긴 뒤에
     // 옛 문구가 뒤늦게 화면을 덮어쓴다.
     flushPending();
+    // 그 flushPending 이 방금 확정한 문구까지 끊는다 — 넘기려던 문장을
+    // 반쯤 읽다 마는 소리가 남지 않게.
+    if (window.JjamSpeech) JjamSpeech.cancel();
     var jump = remain + 0.05;   // 경계를 확실히 넘긴다(부동소수 여유)
     S.startAt -= jump * 1000;
     // 무대의 CSS 애니메이션은 벽시계로 계속 돌고 있다. 라벨 위상 기준점을 같은
@@ -413,11 +623,15 @@
     ).slice(0, RECENT_MAX);
     saveStore();
     $('done-text').textContent = S.session.closing;
+    speakText(S.session.closing);
     show('screen-done');
     renderHome();   // 최근 사용 갱신
   }
 
   function abandon() {
+    // 목소리는 진행 화면 밖(마무리 화면의 인사말)에서도 남아 있을 수 있어
+    // 화면과 무관하게 끊는다 — 홈으로 나온 뒤 혼자 말하는 일이 없게.
+    if (window.JjamSpeech) JjamSpeech.cancel();
     if ($('screen-play').hidden === false) {
       stopTimer();
       if (window.JjamSound) JjamSound.stop(0.3);
@@ -426,6 +640,7 @@
 
   function goHome() {
     abandon();
+    if (window.JjamSpeech) JjamSpeech.clearPrimed();
     renderHome();
     show('screen-home');
   }
@@ -439,6 +654,19 @@
     saveStore();
     renderMute();
     if (window.JjamSound) JjamSound.setMuted(store.muted);
+    // 음소거는 소리 전체를 끈다 — 배경음만 꺼지고 목소리가 계속 나오면
+    // 방송 중에 급히 누른 교사에게는 꺼진 것이 아니다.
+    if (window.JjamSpeech) JjamSpeech.setMuted(store.muted);
+  }
+
+  // ── 목소리 켜고 끄기 (설정 화면) ──
+  // 상단바 음소거와 층이 다르다: 음소거는 소리 전체, 이쪽은 목소리만.
+  // 배경음은 그대로 두고 문구만 조용히 읽히고 싶지 않을 때 쓴다.
+  function setVoice(on) {
+    store.voice = !!on;
+    saveStore();
+    if (window.JjamSpeech) JjamSpeech.setEnabled(store.voice);
+    renderSetup();
   }
 
   // ── 이벤트 ──
@@ -460,15 +688,37 @@
       S.duration = Number(btn.getAttribute('data-d'));
       renderSetup();
     });
+    $('opt-voice').addEventListener('click', function (e) {
+      var btn = e.target.closest('.opt-btn');
+      if (btn) setVoice(btn.getAttribute('data-v') === '1');
+    });
+    $('voice-select').addEventListener('change', function (e) {
+      chooseVoice(e.target.value);
+      renderVoiceOption();
+      // 고르는 즉시 들려준다. 신경망은 만들어 두는 데 시간이 걸리므로
+      // preview 가 아니라 speak 로 — 만들어지는 대로 알아서 난다.
+      if (window.JjamSpeech) {
+        if (JjamSpeech.usingNeural()) JjamSpeech.speak(sampleText());
+        else JjamSpeech.preview(VOICE_SAMPLE);
+      }
+    });
+    $('btn-voice-get').addEventListener('click', getNeuralVoice);
+    $('btn-voice-try').addEventListener('click', function () {
+      if (!window.JjamSpeech) return;
+      if (JjamSpeech.usingNeural()) JjamSpeech.speak(sampleText());
+      else JjamSpeech.preview(VOICE_SAMPLE);
+    });
     $('btn-swap').addEventListener('click', function () {
       var next = recommend(S.type, S.session.id);
       if (next) { S.session = next; renderSetup(); }
     });
-    $('btn-setup-back').addEventListener('click', goHome);
+    $('btn-setup-back').addEventListener('click', goHome);   // goHome 이 미리듣기도 끊는다
     $('btn-start').addEventListener('click', start);
     $('btn-pause').addEventListener('click', togglePause);
     $('btn-skip').addEventListener('click', skipStep);
     $('btn-again').addEventListener('click', function () {
+      // 마무리 인사말을 아직 읽고 있을 수 있다 — 설정 화면으로 옮기며 끊는다.
+      if (window.JjamSpeech) JjamSpeech.cancel();
       S.session = recommend(S.type, S.session.id) || S.session;
       renderSetup();
       show('screen-setup');
@@ -482,6 +732,36 @@
   function init() {
     renderMute();
     bind();
+
+    if (window.JjamSpeech) {
+      JjamSpeech.setEnabled(store.voice);
+      JjamSpeech.setMuted(store.muted);
+      if (store.voiceName && store.voiceName !== NEURAL_KEY) {
+        JjamSpeech.setVoiceByName(store.voiceName);
+      }
+      // 말하는 동안 배경음을 뒤로 물린다 — 교실 스피커에서 빗소리에
+      // 목소리가 묻히면 눈을 감은 학생에게는 아무것도 전해지지 않는다.
+      JjamSpeech.setOnSpeakChange(function (on) {
+        if (window.JjamSound) JjamSound.duck(on);
+      });
+      // 목소리 목록은 뒤늦게 도착하는 브라우저가 많다. 설정 화면을 이미
+      // 보고 있었다면 그때 선택지를 그려 준다.
+      JjamSpeech.setOnReady(function () {
+        if ($('screen-setup').hidden === false) renderVoiceOption();
+      });
+    }
+
+    // 지난번에 받아 둔 신경망 목소리가 있으면 되살린다. 확인은 비동기이므로
+    // 화면을 먼저 그리고, 결과가 오면 그때 목소리 항목만 다시 그린다.
+    if (window.JjamNeural) {
+      JjamNeural.installed().then(function (has) {
+        if (!has) return;
+        neuralReady = true;
+        if (store.voiceName === NEURAL_KEY) JjamSpeech.setNeural(true);
+        if ($('screen-setup').hidden === false) renderVoiceOption();
+      });
+    }
+
     fetch('data/sessions.json')
       .then(function (r) { return r.json(); })
       .then(function (data) {
