@@ -84,6 +84,12 @@
             <button class="btn btn-ghost btn-sm" id="btn-voice-try" type="button">미리 들어보기</button>
             <p class="voice-tip" id="voice-tip" hidden></p>
           </div>
+          <!-- 신경망 목소리 받기 — 아직 안 받았을 때만 나타난다.
+               받고 나면 위 고르기 목록의 한 항목이 된다 (js/app.js). -->
+          <div class="voice-get" id="voice-get" hidden>
+            <button class="btn btn-ghost btn-sm" id="btn-voice-get" type="button">또렷한 목소리 받기</button>
+            <p class="voice-get-note" id="voice-get-note"></p>
+          </div>
         </div>
       </div>
 
@@ -121,6 +127,10 @@
   </main>
 
   <script src="js/sound.js"></script>
+  <!-- 신경망 목소리(선택 설치). 받기 전에는 아무 일도 하지 않고,
+       받은 뒤에는 speech.js 가 브라우저 목소리 대신 이쪽으로 읽는다. -->
+  <script src="js/hangul-roman.js"></script>
+  <script src="js/neural-voice.js"></script>
   <script src="js/speech.js"></script>
   <script src="js/app.js"></script>
   <script src="shared/jjam-switcher.js" defer></script>

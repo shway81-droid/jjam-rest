@@ -230,6 +230,9 @@ button { font-family: inherit; cursor: pointer; }
 .voice-name { font-size: 0.95rem; color: var(--ink-soft); }
 /* 안내는 줄을 통째로 차지한다 — 목소리 이름 옆에 끼어들면 둘 다 잘린다. */
 .voice-tip { flex-basis: 100%; margin: 0; font-size: 0.85rem; color: var(--ink-soft); }
+.voice-get { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.7rem; }
+.voice-get-note { margin: 0; font-size: 0.82rem; color: var(--ink-soft); }
+.voice-get-note.busy { color: var(--accent-deep); font-weight: 700; }
 
 .btn-sm { font-size: 0.9rem; padding: 0.45rem 0.9rem; }
 .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent-deep); }

@@ -160,6 +160,36 @@ var JjamSound = (function () {
     });
   }
 
+  /* 신경망 목소리 재생 — 만들어 둔 파형을 그대로 튼다.
+     차임처럼 master 로 직행한다: bus 는 목소리에 밀려 낮아지는 층이므로
+     목소리 자신이 그리로 들어가면 스스로를 낮춘다.
+     반환한 손잡이의 stop() 은 짧게 흐리며 끊는다 — 뚝 자르면 딸깍 소리가 난다. */
+  function playVoice(samples, sampleRate) {
+    if (!ensure()) return null;
+    var buf = ctx.createBuffer(1, samples.length, sampleRate);
+    buf.getChannelData(0).set(samples);
+    var src = ctx.createBufferSource();
+    var g = ctx.createGain();
+    src.buffer = buf;
+    src.connect(g); g.connect(master);
+    var t = ctx.currentTime;
+    src.start(t);
+    var handle = {
+      onended: null,
+      stop: function () {
+        try {
+          var now = ctx.currentTime;
+          g.gain.cancelScheduledValues(now);
+          g.gain.setValueAtTime(g.gain.value, now);
+          g.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+          src.stop(now + 0.08);
+        } catch (e) { /* 이미 끝났다 */ }
+      }
+    };
+    src.onended = function () { if (handle.onended) handle.onended(); };
+    return handle;
+  }
+
   function suspend() { if (ctx && ctx.state === 'running') ctx.suspend(); }
   function resume() { if (ctx && ctx.state === 'suspended') ctx.resume(); }
 
@@ -176,5 +206,6 @@ var JjamSound = (function () {
   }
 
   return { ensure: ensure, play: play, stop: stop, chime: chime,
-           suspend: suspend, resume: resume, setMuted: setMuted, duck: duck };
+           suspend: suspend, resume: resume, setMuted: setMuted, duck: duck,
+           playVoice: playVoice };
 })();

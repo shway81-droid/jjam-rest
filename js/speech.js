@@ -37,6 +37,14 @@ var JjamSpeech = (function () {
   var onSpeakChange = null;  // 말하는 동안 배경음을 낮추기 위한 통지
   var onReady = null;        // 목소리 목록이 뒤늦게 도착했을 때 화면 갱신
 
+  // ── 신경망 목소리 (js/neural-voice.js) ──
+  // 켜져 있으면 브라우저 목소리 대신 이쪽으로 읽는다. 합성이 실시간의 두 배쯤
+  // 걸리므로 app.js 가 다음 문구를 미리 만들어 두고(prime), 여기서는 꺼내 쓴다.
+  var neural = false;
+  var primed = {};           // 문구 → 만들어 둔 파형
+  var voiceHandle = null;    // 재생 중인 신경망 목소리
+  var seq = 0;               // 늦게 도착한 합성 결과를 버리기 위한 표
+
   function synth() {
     try { return window.speechSynthesis || null; } catch (e) { return null; }
   }
@@ -125,6 +133,8 @@ var JjamSpeech = (function () {
   }
 
   function hardCancel() {
+    seq++;                      // 아직 만들어지는 중인 결과를 버린다
+    stopNeural();
     if (startTimer) { clearTimeout(startTimer); startTimer = null; }
     var s = synth();
     if (s) { try { s.cancel(); } catch (e) { /* 무시 */ } }
@@ -134,9 +144,10 @@ var JjamSpeech = (function () {
   /* 한 문장을 읽는다. 앞 문장은 끊는다 — 화면의 문구가 이미 바뀌었으므로
      들리는 말과 보이는 글이 어긋나지 않아야 한다. */
   function speak(text) {
-    if (!text) return;
+    if (!text || !enabled || muted) return;
+    if (neural && window.JjamNeural) { speakNeural(text); return; }
     var s = synth();
-    if (!s || !voice || !enabled || muted) return;
+    if (!s || !voice) return;
     hardCancel();
     lastText = String(text);
     startTimer = setTimeout(function () {
@@ -146,6 +157,10 @@ var JjamSpeech = (function () {
   }
 
   function pause() {
+    // 신경망 목소리는 AudioContext 로 나므로 JjamSound.suspend() 가 이미
+    // 그 자리에서 멈춰 세운다. 여기서 따로 할 일이 없고, 오히려 건드리면
+    // 재개했을 때 문장이 처음부터 다시 나온다.
+    if (neural) return;
     var s = synth();
     if (!s) return;
     // 아직 시작하지 않은 예약은 멈춤 상태를 만들 수 없다 — 예약부터 지운다.
@@ -156,6 +171,7 @@ var JjamSpeech = (function () {
   }
 
   function resume() {
+    if (neural) return;         // pause 와 같은 이유 — 오디오 시계가 알아서 잇는다
     var s = synth();
     if (!s || !enabled || muted) return;
     try { s.resume(); } catch (e) { /* 무시 */ }
@@ -197,7 +213,59 @@ var JjamSpeech = (function () {
     if (muted) hardCancel();
   }
 
-  function supported() { return !!synth() && !!voice; }
+  /* 신경망 목소리를 쓸지. 켜고 끌 때 하던 말은 끊는다 — 엔진이 바뀌는데
+     앞 엔진의 소리가 남아 있으면 두 목소리가 겹친다. */
+  function setNeural(on) {
+    var next = !!on;
+    if (next === neural) return;
+    hardCancel();
+    neural = next;
+  }
+
+  function usingNeural() { return neural; }
+
+  /* 미리 만들어 두기. 실패는 조용히 넘긴다 — 그때는 speak 가 그 자리에서
+     다시 만들고, 그것도 안 되면 화면 글자만으로 진행된다. */
+  function prime(text) {
+    if (!neural || !text || primed[text] || !window.JjamNeural) return Promise.resolve();
+    return JjamNeural.synth(text).then(function (w) { primed[text] = w; },
+                                       function () { /* 무시 */ });
+  }
+
+  // 한 세션이 끝나면 비운다 — 16kHz 파형이라 한 문장에 수백 KB 다.
+  function clearPrimed() { primed = {}; }
+
+  function stopNeural() {
+    if (voiceHandle) { try { voiceHandle.stop(); } catch (e) { /* 무시 */ } voiceHandle = null; }
+    notify(false);
+  }
+
+  function playWave(w, mySeq) {
+    if (mySeq !== seq || !enabled || muted || !window.JjamSound) return;
+    var h = JjamSound.playVoice(w, JjamNeural.SAMPLE_RATE);
+    if (!h) return;
+    voiceHandle = h;
+    notify(true);
+    h.onended = function () {
+      if (voiceHandle === h) { voiceHandle = null; notify(false); }
+    };
+  }
+
+  function speakNeural(text) {
+    var mySeq = ++seq;
+    stopNeural();
+    lastText = text;
+    var w = primed[text];
+    if (w) { playWave(w, mySeq); return; }
+    // 미리 만들어 둔 것이 없으면 지금 만든다. 그동안 화면 글자는 이미 떠 있다.
+    JjamNeural.synth(text).then(function (wav) {
+      primed[text] = wav;
+      playWave(wav, mySeq);
+    }, function () { /* 조용히 — 활동은 글자만으로도 완결된다 */ });
+  }
+
+  // 신경망 목소리가 준비되면 브라우저 목소리가 없는 기기에서도 읽을 수 있다.
+  function supported() { return (neural && !!window.JjamNeural) || (!!synth() && !!voice); }
 
   /* 기기에 있는 한국어 목소리 목록 — 자연스러운 순으로. 설정 화면이
      두 개 이상일 때만 고르기를 띄운다(하나뿐이면 고를 것이 없다). */
@@ -253,6 +321,10 @@ var JjamSpeech = (function () {
     resume: resume,
     setEnabled: setEnabled,
     setMuted: setMuted,
+    setNeural: setNeural,
+    usingNeural: usingNeural,
+    prime: prime,
+    clearPrimed: clearPrimed,
     list: list,
     setVoiceByName: setVoiceByName,
     currentName: currentName,

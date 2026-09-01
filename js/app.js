@@ -25,6 +25,10 @@
   // 미리듣기 문장 — 실제 활동 문구와 같은 결이어야 판단에 쓸모가 있다.
   var VOICE_SAMPLE = '숨을 천천히 들이쉬고, 길게 내쉬어요.';
 
+  // 목소리 고르기에서 신경망 목소리를 가리키는 값. 브라우저 목소리 이름과
+  // 겹치지 않도록 사람이 쓰지 않는 모양으로 둔다.
+  var NEURAL_KEY = '__jjam__';
+
   var LS_KEY = 'jjam-rest-v1';
   var RECENT_MAX = 8;
   var TICK_MS = 250;
@@ -61,6 +65,8 @@
   var sessions = [];
   var byId = {};
   var store = loadStore();
+  var neuralReady = false;    // 받아 둔 신경망 목소리가 있는가
+  var neuralBusy = false;     // 지금 받는 중인가
 
   var S = {
     type: null,
@@ -235,6 +241,15 @@
     show('screen-setup');
   }
 
+  /* 신경망 목소리는 합성이 실시간의 두 배쯤 걸린다. 시작을 누른 뒤에
+     만들기 시작하면 첫 문구가 한참 뒤에 나온다 — 그래서 편이 정해지는
+     순간(설정 화면)부터 첫 단계 문구를 미리 만들어 둔다.
+     교사가 시간을 고르는 몇 초가 그대로 준비 시간이 된다. */
+  function primeFirst() {
+    if (!window.JjamSpeech || !JjamSpeech.usingNeural() || !S.session) return;
+    JjamSpeech.prime(S.session.steps[0].text);
+  }
+
   function renderSetup() {
     $('picked-title').textContent = S.session.title;
     // 이 편이 지원하는 시간만 그린다 — 화면에 없는 시간은 아무도 고를 수 없어야 한다.
@@ -265,46 +280,125 @@
   }
 
   function renderVoiceOption() {
-    var ok = !!(window.JjamSpeech && JjamSpeech.supported());
+    var browserVoices = JjamSpeech.list();
+    // 받아 둔 목소리가 있거나, 기기에 브라우저 목소리가 있거나,
+    // 아직 없더라도 받을 수 있으면 항목을 보인다. 마지막 경우를 빼먹으면
+    // 한국어 목소리가 아예 없는 기기 — 이 기능이 가장 필요한 기기 — 에서
+    // 받기 단추에 닿을 길이 없어진다.
+    var canGet = !!window.JjamNeural;
+    var ok = neuralReady || browserVoices.length > 0 || canGet;
     $('voice-group').hidden = !ok;
     if (!ok) return;
+
     $('opt-voice').innerHTML = [[1, '읽어줘요'], [0, '글자만']].map(function (o) {
       var on = (!!o[0] === !!store.voice);
       return '<button class="opt-btn" type="button" role="radio" aria-checked="' + on + '" data-v="' + o[0] + '">' +
         o[1] + '</button>';
     }).join('');
 
-    // 어떤 목소리로 읽는지 늘 보여 준다. 윈도우에는 보통 오래된 기본 목소리와
-    // 자연스러운 신경망 목소리가 함께 있어 어느 쪽으로 들리는지가 이 활동의
-    // 인상을 좌우하고, 하나뿐인 기기에서도 시작 전에 들어볼 수 있어야 한다.
-    var voices = JjamSpeech.list();
-    var pickBox = $('voice-pick');
-    pickBox.hidden = !store.voice || !voices.length;
-    if (pickBox.hidden) return;
+    // 고를 수 있는 목소리 = 받아 둔 신경망 목소리 + 기기의 브라우저 목소리.
+    // 신경망을 앞에 둔다 — 어느 브라우저에서나 같은 소리라 기준이 되는 쪽이다.
+    var opts = [];
+    if (neuralReady) opts.push({ key: NEURAL_KEY, label: '짬짬이 목소리 · 어디서나 같아요' });
+    browserVoices.forEach(function (v) { opts.push({ key: v.name, label: voiceLabel(v) }); });
 
-    var sel = $('voice-select');
-    var name = $('voice-name');
-    var many = voices.length > 1;
-    sel.hidden = !many;
-    name.hidden = many;
-    if (many) {
-      sel.innerHTML = voices.map(function (v) {
-        return '<option value="' + esc(v.name) + '"' + (v.current ? ' selected' : '') + '>' +
-          esc(voiceLabel(v)) + '</option>';
-      }).join('');
-    } else {
-      // 고를 것이 없으면 드롭다운 대신 이름만 — 눌러도 아무 일이 없는 UI 는 두지 않는다.
-      name.textContent = voiceLabel(voices[0]);
+    var pickBox = $('voice-pick');
+    pickBox.hidden = !store.voice || !opts.length;
+    if (!pickBox.hidden) {
+      var cur = currentVoiceKey(browserVoices);
+      var sel = $('voice-select');
+      var name = $('voice-name');
+      var many = opts.length > 1;
+      sel.hidden = !many;
+      name.hidden = many;
+      if (many) {
+        sel.innerHTML = opts.map(function (o) {
+          return '<option value="' + esc(o.key) + '"' + (o.key === cur ? ' selected' : '') + '>' +
+            esc(o.label) + '</option>';
+        }).join('');
+      } else {
+        name.textContent = opts[0].label;
+      }
+
+      // 자연스러운 목소리가 하나도 없을 때만 어디서 얻는지 알려 준다.
+      // 마이크로소프트 신경망 목소리는 Edge 에만 노출된다 — 같은 컴퓨터라도
+      // 크롬에서는 목록에 아예 나타나지 않는다. 짬짬이 목소리를 받았다면
+      // 브라우저를 바꿀 이유가 없으므로 그때도 띄우지 않는다.
+      var hasNatural = neuralReady || browserVoices.some(function (v) {
+        return /neural|natural/i.test(v.name);
+      });
+      var tip = $('voice-tip');
+      tip.hidden = hasNatural;
+      if (!hasNatural) tip.textContent = 'Edge 로 열면 더 자연스러운 목소리를 고를 수 있어요.';
     }
 
-    // 자연스러운 목소리가 하나도 없을 때만 어디서 얻는지 알려 준다.
-    // 마이크로소프트 신경망 목소리는 Edge 에만 노출된다 — 같은 컴퓨터라도
-    // 크롬에서는 목록에 아예 나타나지 않는다. 이미 가진 사람에게는 잔소리이므로
-    // 그때는 띄우지 않는다.
-    var hasNatural = voices.some(function (v) { return /neural|natural/i.test(v.name); });
-    var tip = $('voice-tip');
-    tip.hidden = hasNatural;
-    if (!hasNatural) tip.textContent = 'Edge 로 열면 더 자연스러운 목소리를 고를 수 있어요.';
+    renderVoiceGet();
+  }
+
+  /* 아직 안 받았을 때만 받기 단추를 보인다. 받고 나면 위 목록의 한 항목이 된다. */
+  function renderVoiceGet() {
+    var box = $('voice-get');
+    var can = !!window.JjamNeural && !neuralReady && store.voice;
+    box.hidden = !can;
+    if (!can) return;
+    var note = $('voice-get-note');
+    if (!neuralBusy) {
+      note.classList.remove('busy');
+      note.textContent = '한 번 받으면 어느 브라우저에서나 같은 목소리로 읽어요 · ' +
+        Math.round(JjamNeural.TOTAL_BYTES / 1048576) + 'MB';
+    }
+    $('btn-voice-get').disabled = neuralBusy;
+  }
+
+  /* 지금 어떤 목소리가 선택돼 있는가 — 드롭다운의 값과 같은 형식으로. */
+  function currentVoiceKey(browserVoices) {
+    if (neuralReady && store.voiceName === NEURAL_KEY) return NEURAL_KEY;
+    for (var i = 0; i < browserVoices.length; i++) {
+      if (browserVoices[i].current) return browserVoices[i].name;
+    }
+    return neuralReady ? NEURAL_KEY : (browserVoices[0] ? browserVoices[0].name : '');
+  }
+
+  /* 목소리를 고른다. 신경망과 브라우저 사이를 오갈 때 엔진도 함께 바꾼다. */
+  function chooseVoice(key) {
+    store.voiceName = key;
+    saveStore();
+    if (!window.JjamSpeech) return;
+    if (key === NEURAL_KEY) {
+      JjamSpeech.setNeural(true);
+    } else {
+      JjamSpeech.setNeural(false);
+      JjamSpeech.setVoiceByName(key);
+    }
+  }
+
+  /* 신경망 목소리 내려받기. 다 받으면 곧바로 그 목소리로 바꾸고 한 문장 들려준다 —
+     47MB 를 받고도 무엇이 달라졌는지 모르면 받은 보람이 없다. */
+  function getNeuralVoice() {
+    if (neuralBusy || !window.JjamNeural) return;
+    neuralBusy = true;
+    var note = $('voice-get-note');
+    note.classList.add('busy');
+    note.textContent = '받는 중… 0%';
+    $('btn-voice-get').disabled = true;
+
+    JjamNeural.install(function (done, total) {
+      note.textContent = '받는 중… ' + Math.min(99, Math.floor(done / total * 100)) + '%';
+    }).then(function () {
+      note.textContent = '준비 중…';
+      return JjamNeural.load();
+    }).then(function () {
+      neuralBusy = false;
+      neuralReady = true;
+      chooseVoice(NEURAL_KEY);
+      renderVoiceOption();
+      JjamSpeech.speak(VOICE_SAMPLE);
+    }).catch(function () {
+      neuralBusy = false;
+      note.classList.remove('busy');
+      note.textContent = '받지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.';
+      $('btn-voice-get').disabled = false;
+    });
   }
 
   // ── 화면: 진행 ──
@@ -332,8 +426,12 @@
     if (window.JjamSpeech) {
       JjamSpeech.setEnabled(store.voice);
       JjamSpeech.setMuted(store.muted);
-      if (store.voiceName) JjamSpeech.setVoiceByName(store.voiceName);
       JjamSpeech.ensure();
+      // 앞의 두 단계를 미리 만들어 둔다. 첫 단계는 설정 화면에서 이미
+      // 시작됐을 가능성이 높고(primeFirst), 두 번째는 첫 단계가 흐르는
+      // 10초 동안 만들어진다.
+      primeAhead(0);
+      primeAhead(1);
     }
 
     $('play-anim').innerHTML = '';
@@ -401,6 +499,15 @@
     if (window.JjamSpeech) JjamSpeech.speak(text);
   }
 
+  /* 지금 읽는 동안 다음 문구를 만들어 둔다 — 단계가 10~64초라 넉넉하다.
+     마지막 단계에 이르면 마무리 인사말을 준비한다. */
+  function primeAhead(idx) {
+    if (!window.JjamSpeech || !JjamSpeech.usingNeural()) return;
+    var st = S.timeline[idx];
+    if (st) JjamSpeech.prime(st.text);
+    else if (S.session) JjamSpeech.prime(S.session.closing);
+  }
+
   function applyStep(idx, immediate) {
     S.stepIdx = idx;
     var st = S.timeline[idx];
@@ -425,6 +532,8 @@
       if (st.sound) JjamSound.play(S.session.sound);
       else JjamSound.stop();
     }
+
+    primeAhead(idx + 1);
 
     if (immediate) { cancel('fadeTimer'); put(); return; }
     textEl.classList.add('fading');
@@ -519,6 +628,7 @@
 
   function goHome() {
     abandon();
+    if (window.JjamSpeech) JjamSpeech.clearPrimed();
     renderHome();
     show('screen-home');
   }
@@ -571,15 +681,20 @@
       if (btn) setVoice(btn.getAttribute('data-v') === '1');
     });
     $('voice-select').addEventListener('change', function (e) {
-      store.voiceName = e.target.value;
-      saveStore();
+      chooseVoice(e.target.value);
+      renderVoiceOption();
+      // 고르는 즉시 들려준다. 신경망은 만들어 두는 데 시간이 걸리므로
+      // preview 가 아니라 speak 로 — 만들어지는 대로 알아서 난다.
       if (window.JjamSpeech) {
-        JjamSpeech.setVoiceByName(store.voiceName);
-        JjamSpeech.preview(VOICE_SAMPLE);   // 고르는 즉시 들려준다
+        if (JjamSpeech.usingNeural()) JjamSpeech.speak(VOICE_SAMPLE);
+        else JjamSpeech.preview(VOICE_SAMPLE);
       }
     });
+    $('btn-voice-get').addEventListener('click', getNeuralVoice);
     $('btn-voice-try').addEventListener('click', function () {
-      if (window.JjamSpeech) JjamSpeech.preview(VOICE_SAMPLE);
+      if (!window.JjamSpeech) return;
+      if (JjamSpeech.usingNeural()) JjamSpeech.speak(VOICE_SAMPLE);
+      else JjamSpeech.preview(VOICE_SAMPLE);
     });
     $('btn-swap').addEventListener('click', function () {
       var next = recommend(S.type, S.session.id);
@@ -609,7 +724,9 @@
     if (window.JjamSpeech) {
       JjamSpeech.setEnabled(store.voice);
       JjamSpeech.setMuted(store.muted);
-      if (store.voiceName) JjamSpeech.setVoiceByName(store.voiceName);
+      if (store.voiceName && store.voiceName !== NEURAL_KEY) {
+        JjamSpeech.setVoiceByName(store.voiceName);
+      }
       // 말하는 동안 배경음을 뒤로 물린다 — 교실 스피커에서 빗소리에
       // 목소리가 묻히면 눈을 감은 학생에게는 아무것도 전해지지 않는다.
       JjamSpeech.setOnSpeakChange(function (on) {
@@ -618,6 +735,17 @@
       // 목소리 목록은 뒤늦게 도착하는 브라우저가 많다. 설정 화면을 이미
       // 보고 있었다면 그때 선택지를 그려 준다.
       JjamSpeech.setOnReady(function () {
+        if ($('screen-setup').hidden === false) renderVoiceOption();
+      });
+    }
+
+    // 지난번에 받아 둔 신경망 목소리가 있으면 되살린다. 확인은 비동기이므로
+    // 화면을 먼저 그리고, 결과가 오면 그때 목소리 항목만 다시 그린다.
+    if (window.JjamNeural) {
+      JjamNeural.installed().then(function (has) {
+        if (!has) return;
+        neuralReady = true;
+        if (store.voiceName === NEURAL_KEY) JjamSpeech.setNeural(true);
         if ($('screen-setup').hidden === false) renderVoiceOption();
       });
     }
