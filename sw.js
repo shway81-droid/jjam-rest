@@ -4,7 +4,10 @@
 // v3: 자산 목록에 js/speech.js 가 늘었다 — 목록이 바뀌면 이름도 올려야
 // 옛 캐시를 쥔 기기가 새 파일 없이 index.html 만 갱신하는 일이 없다.
 // v4: 한글 로마자·신경망 목소리 파일이 늘었다.
-var CACHE = 'jjam-rest-v4';
+// v5: 신경망 목소리를 내리고 만들어 둔 목소리 파일(assets/voice)로 바꿨다.
+//     mp3 는 미리 담지 않는다 — 10MB 를 첫 방문에 다 받게 하는 대신, 아래
+//     fetch 처리기가 재생된 파일부터 담아 두 번째부터는 오프라인에서도 난다.
+var CACHE = 'jjam-rest-v5';
 
 var ASSETS = [
   './',
@@ -13,8 +16,8 @@ var ASSETS = [
   './js/app.js',
   './js/sound.js',
   './js/speech.js',
-  './js/hangul-roman.js',
-  './js/neural-voice.js',
+  './js/voice-files.js',
+  './assets/voice/manifest.json',
   './shared/jjam-switcher.js',
   './data/sessions.json',
   './favicon.svg',
@@ -41,9 +44,7 @@ self.addEventListener('activate', function (e) {
 /* 네트워크 우선, 실패 시 캐시 (콘텐츠 갱신 반영) */
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
-  // 우리 사이트 파일만 다룬다. 신경망 목소리(47MB)는 다른 출처에서 받아
-  // js/neural-voice.js 가 자기 캐시에 넣는다 — 여기서 또 담으면 같은 것을
-  // 두 벌 저장하게 되고, 그 캐시만 지워도 목소리가 살아 있는 것처럼 보인다.
+  // 우리 사이트 파일만 다룬다(목소리 mp3 포함 — 재생된 것부터 담긴다).
   if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request).then(function (res) {
