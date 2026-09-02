@@ -5,12 +5,13 @@
   "description": "짬짬이 쉼 — 수업 전 1~5분, 들뜬 반을 차분하게 만드는 자동 진행 쉼 활동",
   "type": "module",
   "scripts": {
-    "verify": "node scripts/validate-data.mjs && node scripts/check-font-coverage.mjs && node scripts/check-roman.mjs",
+    "verify": "node scripts/validate-data.mjs && node scripts/check-font-coverage.mjs && node scripts/check-voices.mjs",
     "test": "npm run verify",
     "sync:shared": "node scripts/sync-shared.mjs",
     "sync:check": "node scripts/sync-shared.mjs --check",
     "icons": "node scripts/gen-icons.mjs",
-    "start": "npx http-server . -p 8378 -c-1"
+    "start": "npx http-server . -p 8378 -c-1",
+    "voices": "python3 scripts/gen-voices.py"
   },
   "devDependencies": {
     "playwright": "^1.49.0"

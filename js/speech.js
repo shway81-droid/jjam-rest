@@ -4,10 +4,13 @@
    녹음 파일 대신 브라우저에 이미 들어 있는 목소리를 쓴다:
    용량 0, 저작권 문제 0, 문구를 고쳐도 다시 녹음할 일이 없다.
 
-   목소리는 항상 보조다. 한국어 목소리가 없는 기기(대부분의 리눅스, 일부
-   구형 안드로이드)에서는 통째로 꺼지고, 활동은 화면과 배경음만으로 완결된다.
-   그런 기기에서 선택지를 보여 주면 눌러도 아무 일이 없으므로,
-   supported() 가 거짓이면 앱이 설정 화면의 목소리 항목 자체를 감춘다. */
+   두 엔진이 있다. 기본은 만들어 둔 목소리 파일(js/voice-files.js — 선히·현수,
+   명상 안내에 맞춰 늦추고 낮춘 것)이고, 파일이 없는 문구나 파일 목소리를 끈
+   기기에서는 브라우저 내장 음성합성으로 읽는다.
+
+   목소리는 항상 보조다. 어느 엔진도 없는 기기에서는 통째로 꺼지고, 활동은
+   화면과 배경음만으로 완결된다. supported() 가 거짓이면 앱이 설정 화면의
+   목소리 항목 자체를 감춘다. */
 var JjamSpeech = (function () {
   'use strict';
 
@@ -37,14 +40,13 @@ var JjamSpeech = (function () {
   var onSpeakChange = null;  // 말하는 동안 배경음을 낮추기 위한 통지
   var onReady = null;        // 목소리 목록이 뒤늦게 도착했을 때 화면 갱신
 
-  // ── 신경망 목소리 (js/neural-voice.js) ──
-  // 켜져 있으면 브라우저 목소리 대신 이쪽으로 읽는다. 합성이 실시간의 두 배쯤
-  // 걸리므로 app.js 가 다음 문구를 미리 만들어 두고(prime), 여기서는 꺼내 쓴다.
-  var neural = false;
-  var primed = {};           // 문구 → 만들어 둔 파형
-  var inflight = {};         // 문구 → 만들어지는 중인 약속
-  var voiceHandle = null;    // 재생 중인 신경망 목소리
-  var seq = 0;               // 늦게 도착한 합성 결과를 버리기 위한 표
+  // ── 만들어 둔 목소리 파일 (js/voice-files.js) ──
+  // fileVoice 가 비어 있지 않으면 파일이 있는 문구는 그 목소리 파일로 읽는다.
+  // app.js 가 다음 문구를 미리 받아 풀어 두고(prime), 여기서는 꺼내 쓴다.
+  var fileVoice = '';        // 'sunhi' | 'hyunsu' | '' (끔)
+  var voiceHandle = null;    // 재생 중인 파일 목소리
+  var seq = 0;               // 늦게 도착한 파일을 버리기 위한 표
+  var lastEngine = '';       // 마지막 문구를 읽은 엔진 — pause/resume 이 이것만 다룬다
 
   function synth() {
     try { return window.speechSynthesis || null; } catch (e) { return null; }
@@ -134,8 +136,8 @@ var JjamSpeech = (function () {
   }
 
   function hardCancel() {
-    seq++;                      // 아직 만들어지는 중인 결과를 버린다
-    stopNeural();
+    seq++;                      // 아직 받는 중인 파일을 버린다
+    stopFile();
     if (startTimer) { clearTimeout(startTimer); startTimer = null; }
     var s = synth();
     if (s) { try { s.cancel(); } catch (e) { /* 무시 */ } }
@@ -144,12 +146,16 @@ var JjamSpeech = (function () {
 
   /* 한 문장을 읽는다. 앞 문장은 끊는다 — 화면의 문구가 이미 바뀌었으므로
      들리는 말과 보이는 글이 어긋나지 않아야 한다. */
-  function speak(text) {
+  function speak(text, key) {
     if (!text || !enabled || muted) return;
-    if (neural && window.JjamNeural) { speakNeural(text); return; }
+    if (fileVoice && key && window.JjamVoiceFiles && JjamVoiceFiles.has(key, text)) {
+      speakFile(key);
+      return;
+    }
     var s = synth();
     if (!s || !voice) return;
     hardCancel();
+    lastEngine = 'browser';
     lastText = String(text);
     startTimer = setTimeout(function () {
       startTimer = null;
@@ -158,10 +164,10 @@ var JjamSpeech = (function () {
   }
 
   function pause() {
-    // 신경망 목소리는 AudioContext 로 나므로 JjamSound.suspend() 가 이미
+    // 파일 목소리는 AudioContext 로 나므로 JjamSound.suspend() 가 이미
     // 그 자리에서 멈춰 세운다. 여기서 따로 할 일이 없고, 오히려 건드리면
     // 재개했을 때 문장이 처음부터 다시 나온다.
-    if (neural) return;
+    if (lastEngine !== 'browser') return;
     var s = synth();
     if (!s) return;
     // 아직 시작하지 않은 예약은 멈춤 상태를 만들 수 없다 — 예약부터 지운다.
@@ -172,7 +178,7 @@ var JjamSpeech = (function () {
   }
 
   function resume() {
-    if (neural) return;         // pause 와 같은 이유 — 오디오 시계가 알아서 잇는다
+    if (lastEngine !== 'browser') return;   // pause 와 같은 이유 — 오디오 시계가 알아서 잇는다
     var s = synth();
     if (!s || !enabled || muted) return;
     try { s.resume(); } catch (e) { /* 무시 */ }
@@ -214,53 +220,38 @@ var JjamSpeech = (function () {
     if (muted) hardCancel();
   }
 
-  /* 신경망 목소리를 쓸지. 켜고 끌 때 하던 말은 끊는다 — 엔진이 바뀌는데
-     앞 엔진의 소리가 남아 있으면 두 목소리가 겹친다. */
-  function setNeural(on) {
-    var next = !!on;
-    if (next === neural) return;
+  /* 어느 목소리 파일로 읽을지('sunhi'·'hyunsu', '' 이면 끔). 바꿀 때 하던 말은
+     끊는다 — 엔진이 바뀌는데 앞 소리가 남아 있으면 두 목소리가 겹친다. */
+  function setFileVoice(key) {
+    var next = key || '';
+    if (next === fileVoice) return;
     hardCancel();
-    neural = next;
+    fileVoice = next;
   }
 
-  function usingNeural() { return neural; }
+  function usingFiles() { return !!fileVoice; }
+  function currentFileVoice() { return fileVoice; }
 
-  /* 한 문구당 합성은 한 번만. 이것이 없으면 같은 문구를 primeFirst·primeAhead·
-     speak 가 각각 따로 만들어 큐에 쌓인다 — 합성이 실시간의 두 배라 그 중복이
-     그대로 지연이 되어, 1분 세션이 끝나도록 첫 문구가 나오지 않았다. */
-  function ensureWave(text) {
-    if (primed[text]) return Promise.resolve(primed[text]);
-    if (inflight[text]) return inflight[text];
-    var pr = JjamNeural.synth(text).then(function (w) {
-      primed[text] = w;
-      delete inflight[text];
-      return w;
-    }, function (e) {
-      delete inflight[text];
-      throw e;
-    });
-    inflight[text] = pr;
-    return pr;
+  /* 미리 받아 풀어 두기. 실패는 조용히 넘긴다 — 그때는 speak 가 다시 시도하고,
+     그것도 안 되면 브라우저 목소리로, 그것도 없으면 화면 글자만으로 진행된다. */
+  function prime(key, text) {
+    if (!fileVoice || !key || !window.JjamVoiceFiles) return Promise.resolve();
+    if (!JjamVoiceFiles.has(key, text)) return Promise.resolve();
+    return JjamVoiceFiles.get(fileVoice, key).then(function () {}, function () { /* 무시 */ });
   }
 
-  /* 미리 만들어 두기. 실패는 조용히 넘긴다 — 그때는 speak 가 다시 시도하고,
-     그것도 안 되면 화면 글자만으로 진행된다. */
-  function prime(text) {
-    if (!neural || !text || !window.JjamNeural) return Promise.resolve();
-    return ensureWave(text).then(function () {}, function () { /* 무시 */ });
-  }
+  // 한 세션이 끝나면 비운다 — 풀어 둔 소리는 파일보다 열 배쯤 크다.
+  function clearPrimed() { if (window.JjamVoiceFiles) JjamVoiceFiles.clear(); }
 
-  // 한 세션이 끝나면 비운다 — 16kHz 파형이라 한 문장에 수백 KB 다.
-  function clearPrimed() { primed = {}; inflight = {}; }
-
-  function stopNeural() {
+  function stopFile() {
     if (voiceHandle) { try { voiceHandle.stop(); } catch (e) { /* 무시 */ } voiceHandle = null; }
     notify(false);
   }
 
-  function playWave(w, mySeq) {
+  function playBuf(buf, mySeq) {
+    // 그새 다음 문구로 넘어갔으면 버린다 — 들리는 말과 보이는 글이 어긋나지 않게.
     if (mySeq !== seq || !enabled || muted || !window.JjamSound) return;
-    var h = JjamSound.playVoice(w, JjamNeural.SAMPLE_RATE);
+    var h = JjamSound.playBuffer(buf);
     if (!h) return;
     voiceHandle = h;
     notify(true);
@@ -269,21 +260,28 @@ var JjamSpeech = (function () {
     };
   }
 
-  function speakNeural(text) {
+  function speakFile(key) {
     var mySeq = ++seq;
-    stopNeural();
-    lastText = text;
-    var w = primed[text];
-    if (w) { playWave(w, mySeq); return; }
-    // 아직 없으면 만들어지는 중인 것에 올라탄다(없으면 지금 만든다).
-    // 그동안 화면 글자는 이미 떠 있다.
-    ensureWave(text).then(function (wav) {
-      playWave(wav, mySeq);
+    hardCancelBrowser();
+    stopFile();
+    lastEngine = 'file';
+    // 미리 받아 둔 것이 있으면 즉시, 없으면 받는 중인 것에 올라탄다.
+    JjamVoiceFiles.get(fileVoice, key).then(function (buf) {
+      playBuf(buf, mySeq);
     }, function () { /* 조용히 — 활동은 글자만으로도 완결된다 */ });
   }
 
-  // 신경망 목소리가 준비되면 브라우저 목소리가 없는 기기에서도 읽을 수 있다.
-  function supported() { return (neural && !!window.JjamNeural) || (!!synth() && !!voice); }
+  // 브라우저 목소리만 끊는다(파일 쪽 표는 건드리지 않는다).
+  function hardCancelBrowser() {
+    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+    var s = synth();
+    if (s) { try { s.cancel(); } catch (e) { /* 무시 */ } }
+  }
+
+  // 파일 목소리가 있으면 브라우저 목소리가 없는 기기에서도 읽을 수 있다.
+  function supported() {
+    return (fileVoice && !!window.JjamVoiceFiles && JjamVoiceFiles.ready()) || (!!synth() && !!voice);
+  }
 
   /* 기기에 있는 한국어 목소리 목록 — 자연스러운 순으로. 설정 화면이
      두 개 이상일 때만 고르기를 띄운다(하나뿐이면 고를 것이 없다). */
@@ -303,10 +301,16 @@ var JjamSpeech = (function () {
 
   /* 미리듣기 — 고른 목소리를 활동 문구 한 줄로 들려준다.
      설정 화면에서 부르므로 사용자 제스처 안이다(사파리 대응). */
-  function preview(text) {
+  function preview(text, key) {
+    if (muted) return;
+    if (fileVoice && key && window.JjamVoiceFiles && JjamVoiceFiles.has(key, text)) {
+      speakFile(key);
+      return;
+    }
     var s = synth();
-    if (!s || !voice || muted) return;
+    if (!s || !voice) return;
     hardCancel();
+    lastEngine = 'browser';
     lastText = text;
     utter(text);
   }
@@ -339,8 +343,9 @@ var JjamSpeech = (function () {
     resume: resume,
     setEnabled: setEnabled,
     setMuted: setMuted,
-    setNeural: setNeural,
-    usingNeural: usingNeural,
+    setFileVoice: setFileVoice,
+    usingFiles: usingFiles,
+    currentFileVoice: currentFileVoice,
     prime: prime,
     clearPrimed: clearPrimed,
     list: list,

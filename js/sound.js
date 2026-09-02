@@ -168,6 +168,22 @@ var JjamSound = (function () {
     if (!ensure()) return null;
     var buf = ctx.createBuffer(1, samples.length, sampleRate);
     buf.getChannelData(0).set(samples);
+    return playBuffer(buf);
+  }
+
+  /* mp3 등 압축 파일을 소리로 푼다. 사용자 제스처 전에도 되므로 다음 문구를
+     미리 풀어 둘 수 있다(AudioContext 는 만들어지되 멈춘 상태로 있다). */
+  function decode(arrayBuffer) {
+    if (!ensure()) return Promise.reject(new Error('Web Audio 없음'));
+    return new Promise(function (resolve, reject) {
+      // 콜백 꼴이 가장 널리 된다(구형 사파리는 약속을 돌려주지 않는다).
+      ctx.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+    });
+  }
+
+  /* 풀어 둔 소리를 그대로 튼다 — 만들어 둔 목소리 파일이 이 길로 나간다. */
+  function playBuffer(buf) {
+    if (!ensure()) return null;
     var src = ctx.createBufferSource();
     var g = ctx.createGain();
     src.buffer = buf;
@@ -207,5 +223,5 @@ var JjamSound = (function () {
 
   return { ensure: ensure, play: play, stop: stop, chime: chime,
            suspend: suspend, resume: resume, setMuted: setMuted, duck: duck,
-           playVoice: playVoice };
+           playVoice: playVoice, decode: decode, playBuffer: playBuffer };
 })();
